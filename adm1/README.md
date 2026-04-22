@@ -4,7 +4,7 @@ This project implements a simulation of an anaerobic digestion reactor based on 
 
 The code is adapted from the original PyADM1 implementation, a Python tool for modeling and simulating anaerobic digestion processes in biogas reactors.
 
-Original repository:
+Source repository:
 https://github.com/CaptainFerMag/PyADM1
 
 This adaptation restructures and extends the original implementation to support improved configuration handling, data preprocessing, and modular code organization.
