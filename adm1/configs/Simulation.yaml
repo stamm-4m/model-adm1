@@ -1,0 +1,79 @@
+# Configuration/Simulation
+# Simulation
+
+# Author: Bonal Margaux
+# Email: margaux.bonal@inrae.fr
+# Date: 09/04/2026
+
+# ============================================================
+# Réglages numériques de la simulation ADM1
+# ============================================================
+# Ce fichier est dédié à la résolution numérique des équations.
+# Il est indépendant du contenu physique du modèle.
+# ============================================================
+
+# ------ Solveur ODE ------
+solver:
+  method: "BDF"          # Options : "RK45", "DOP853", "BDF", "Radau", "LSODA"
+  rtol: 1.0e-6            # Tolérance relative
+  atol: 1.0e-8            # Tolérance absolue
+  max_step: 1.0           # Pas de temps maximum [d] (inf = sans contrainte)
+  dense_output: false     # Sortie dense (interpolation entre pas)
+
+# ------ Durée et pas de temps de sortie ------
+time:
+  t_start: 0             # Temps initial [d]
+  t_end: null            # null = déterminé par la longueur des données d'influent à revoir parce que des fois l'influent est constant 
+  t_end_default_constant : 30 #durée par défaut pour influent alimenté constant
+  dt_out: 1.0            # Pas de temps de sortie [d] (1 = journalier)
+  units: "d"
+
+# ------ Options de sauvegarde des résultats ------
+output:
+  save_results: true
+  output_dir: "results/"
+  filename: "dynamic_out.csv"
+  state_variables:        # Variables à sauvegarder (null = toutes)
+    - S_su
+    - S_aa
+    - S_fa
+    - S_va
+    - S_bu
+    - S_pro
+    - S_ac
+    - S_h2
+    - S_ch4
+    - S_IC
+    - S_IN
+    - S_I
+    - X_xc
+    - X_ch
+    - X_pr
+    - X_li
+    - X_su
+    - X_aa
+    - X_fa
+    - X_c4
+    - X_pro
+    - X_ac
+    - X_h2
+    - X_I
+    - S_cation
+    - S_anion
+    - S_H_ion
+    - S_va_ion
+    - S_bu_ion
+    - S_pro_ion
+    - S_ac_ion
+    - S_hco3_ion
+    - S_nh3
+    - S_gas_h2
+    - S_gas_ch4
+    - S_gas_co2
+    - S_co2
+    - S_nh4_ion
+
+# ------ Affichage de la progression ------
+verbose:
+  print_time: true        # Afficher le temps de simulation à chaque pas
+  print_interval: 1      # Afficher tous les N pas (pour ne pas saturer la console)

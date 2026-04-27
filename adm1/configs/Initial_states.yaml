@@ -1,0 +1,189 @@
+# Configuration/initial_state
+# Initial states
+
+# Author: Bonal Margaux
+# Email: margaux.bonal@inrae.fr
+# Date: 09/04/2026
+
+# ============================================================
+# États initiaux du digesteur
+# ============================================================
+# Ce fichier décrit l'état du digesteur au temps t=0.
+# Valeurs issues de Rosen et al. (2006) BSM2 report.
+# Plusieurs jeux d'états initiaux peuvent être définis
+# et sélectionnés via configs/scenarios/scenarios.yaml.
+# ============================================================
+
+# ------ Jeu d'états initiaux BSM2 (référence) ------
+BSM2:
+  description: "État initial de référence BSM2 (Rosen et al., 2006) - régime mésophile établi"
+  pH:
+    value: 7.4655377
+    units: "-"
+    description: "pH initial dans le réacteur"
+
+  # Variables solubles (kgCOD.m^-3)
+  S_su:
+    value: 0.012394
+    units: "kgCOD.m^-3"
+    description: "Concentration en monosaccharides"
+  S_aa:
+    value: 0.0055432
+    units: "kgCOD.m^-3"
+    description: "Concentration en acides aminés"
+  S_fa:
+    value: 0.10741
+    units: "kgCOD.m^-3"
+    description: "Concentration en acides gras à longue chaîne (LCFA)"
+  S_va:
+    value: 0.012333
+    units: "kgCOD.m^-3"
+    description: "Concentration en valérate"
+  S_bu:
+    value: 0.014003
+    units: "kgCOD.m^-3"
+    description: "Concentration en butyrate"
+  S_pro:
+    value: 0.017584
+    units: "kgCOD.m^-3"
+    description: "Concentration en propionate"
+  S_ac:
+    value: 0.089315
+    units: "kgCOD.m^-3"
+    description: "Concentration en acétate"
+  S_h2:
+    value: 2.51e-07
+    units: "kgCOD.m^-3"
+    description: "Concentration en hydrogène dissous"
+  S_ch4:
+    value: 0.05549
+    units: "kgCOD.m^-3"
+    description: "Concentration en méthane dissous"
+  S_IC:
+    value: 0.095149
+    units: "kmol C.m^-3"
+    description: "Carbone inorganique"
+  S_IN:
+    value: 0.094468
+    units: "kmol N.m^-3"
+    description: "Azote inorganique"
+  S_I:
+    value: 0.13087
+    units: "kgCOD.m^-3"
+    description: "COD soluble inerte"
+
+  # Variables particulaires (kgCOD.m^-3)
+  X_xc:
+    value: 0.10792
+    units: "kgCOD.m^-3"
+    description: "Matière particulaire composite"
+  X_ch:
+    value: 0.020517
+    units: "kgCOD.m^-3"
+    description: "Glucides particulaires"
+  X_pr:
+    value: 0.08422
+    units: "kgCOD.m^-3"
+    description: "Protéines particulaires"
+  X_li:
+    value: 0.043629
+    units: "kgCOD.m^-3"
+    description: "Lipides particulaires"
+  X_su:
+    value: 0.31222
+    units: "kgCOD.m^-3"
+    description: "Biomasse dégradant les sucres"
+  X_aa:
+    value: 0.93167
+    units: "kgCOD.m^-3"
+    description: "Biomasse dégradant les acides aminés"
+  X_fa:
+    value: 0.33839
+    units: "kgCOD.m^-3"
+    description: "Biomasse dégradant les LCFA"
+  X_c4:
+    value: 0.33577
+    units: "kgCOD.m^-3"
+    description: "Biomasse dégradant le valérate et butyrate"
+  X_pro:
+    value: 0.10112
+    units: "kgCOD.m^-3"
+    description: "Biomasse dégradant le propionate"
+  X_ac:
+    value: 0.67724
+    units: "kgCOD.m^-3"
+    description: "Biomasse dégradant l'acétate"
+  X_h2:
+    value: 0.28484
+    units: "kgCOD.m^-3"
+    description: "Biomasse dégradant l'hydrogène"
+  X_I:
+    value: 17.2162
+    units: "kgCOD.m^-3"
+    description: "COD particulaire inerte"
+
+  # Variables ioniques et pH
+  S_cation:
+    value: 0.04
+    units: "M"
+    description: "Cations forts"
+  S_anion:
+    value: 0.0052101
+    units: "M"
+    description: "Anions forts"
+  S_H_ion:
+    value: 5.46e-08
+    units: "M"
+    description: "Concentration en ions H+ (pH)"
+  S_va_ion:
+    value: 0.012284
+    units: "M"
+    description: "Ion valérate"
+  S_bu_ion:
+    value: 0.013953
+    units: "M"
+    description: "Ion butyrate"
+  S_pro_ion:
+    value: 0.017511
+    units: "M"
+    description: "Ion propionate"
+  S_ac_ion:
+    value: 0.089035
+    units: "M"
+    description: "Ion acétate"
+  S_hco3_ion:
+    value: 0.08568
+    units: "M"
+    description: "Bicarbonate"
+  S_co2:
+    value: 0.0094689
+    units: "M"
+    description: "CO2 dissous"
+  S_nh3:
+    value: 0.001884
+    units: "M"
+    description: "Ammoniac libre"
+  S_nh4_ion:
+    value: 0.092584
+    units: "M"
+    description: "Ammonium"
+
+   # Phase gazeuse (états dynamiques, pas des pressions)
+  S_gas_h2:
+    value: 1.1e-5
+    units: "kgCOD.m^-3"
+
+  S_gas_ch4:
+    value: 1.6535
+    units: "kgCOD.m^-3"
+
+  S_gas_co2:
+    value: 0.01354
+    units: "kmol C.m^-3"
+
+# ------ Exemple : état initial "digesteur vide" ------
+# Décommenter et adapter pour initialiser depuis un état proche de zéro
+# blank:
+#   description: "État initial minimal - digesteur vierge"
+#   S_su: {value: 0.01, units: "kgCOD.m^-3", description: "Monosaccharides"}
+#   ...

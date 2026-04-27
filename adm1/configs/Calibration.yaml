@@ -1,0 +1,101 @@
+# Configuration/Calibration
+# Calibration
+
+# Author: Bonal Margaux
+# Email: margaux.bonal@inrae.fr
+# Date: 09/04/2026
+
+# ============================================================
+# Configuration de la calibration ADM1
+# ============================================================
+# Ce fichier définit le cadre de calibration du modèle.
+# Il sépare explicitement les paramètres fixes (adm1_parameters.yaml)
+# des paramètres ajustables listés ici.
+# ============================================================
+
+# ------ Méthode d'optimisation ------
+optimization:
+  method: "differential_evolution"   # Alternatives : "Nelder-Mead", "L-BFGS-B", "PSO"
+  max_iterations: 500
+  tolerance: 1.0e-6
+  seed: 42                            # Graine aléatoire pour la reproductibilité
+
+# ------ Fonction objectif ------
+objective_function:
+  type: "RMSE"                        # Alternatives : "MSE", "MAE", "NSE"
+  weights:                            # Pondération relative des sorties observées
+    S_ac: 1.0
+    S_pro: 1.0
+    S_gas_ch4: 2.0                    # Méthane davantage pondéré
+    pH: 1.5
+
+# ------ Variables observées (données expérimentales) ------
+observed_outputs:
+  file_path: "configs/calibration/observations.csv"
+  time_column: "time"
+  variables:
+    - S_ac       # Acétate                [kgCOD.m^-3]
+    - S_pro      # Propionate             [kgCOD.m^-3]
+    - S_gas_ch4  # Méthane gazeux         [bar]
+    - pH         # pH                     [-]
+
+# ------ Paramètres libres à calibrer ------
+# Pour chaque paramètre : valeur initiale, bornes min/max
+free_parameters:
+
+  k_m_ac:
+    initial: 8.0
+    min: 2.0
+    max: 20.0
+    units: "d^-1"
+    description: "Taux d'uptake maximum pour l'acétate"
+
+  K_S_ac:
+    initial: 0.15
+    min: 0.05
+    max: 0.5
+    units: "kgCOD.m^-3"
+    description: "Constante de demi-saturation pour l'acétate"
+
+  k_m_pro:
+    initial: 13.0
+    min: 4.0
+    max: 30.0
+    units: "d^-1"
+    description: "Taux d'uptake maximum pour le propionate"
+
+  K_I_nh3:
+    initial: 0.0018
+    min: 0.0005
+    max: 0.005
+    units: "M"
+    description: "Constante d'inhibition par l'ammoniac libre"
+
+  k_dec_X_ac:
+    initial: 0.02
+    min: 0.005
+    max: 0.05
+    units: "d^-1"
+    description: "Taux de décès de la biomasse acétate"
+
+# ------ Étapes de calibration ------
+# Permet une calibration séquentielle par groupe de processus
+steps:
+  - name: "hydrolysis"
+    description: "Calibration des paramètres d'hydrolyse"
+    parameters: []   # Non implémenté dans cet exemple
+    active: false
+
+  - name: "methanogenesis"
+    description: "Calibration de la méthanogenèse acétoclaste"
+    parameters:
+      - k_m_ac
+      - K_S_ac
+      - k_dec_X_ac
+    active: true
+
+  - name: "inhibition"
+    description: "Calibration des paramètres d'inhibition"
+    parameters:
+      - K_I_nh3
+    active: true

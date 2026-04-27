@@ -1,0 +1,96 @@
+# Configuration/scenarios
+# Scenarios
+
+# Author: Bonal Margaux
+# Email: margaux.bonal@inrae.fr
+# Date: 09/04/2026
+
+# ============================================================
+# Scénarios de simulation ADM1
+# ============================================================
+# Ce fichier définit les cas de simulation à exécuter.
+# Chaque scénario regroupe les choix structurants nécessaires :
+# - états initiaux, mode d'influent, durée, surcharges de paramètres : pour l'instant uniquement des scénarios avec un changement de T°
+# ============================================================
+
+# ------ Scénario actif ------
+# active_scenario: BSM2_dynamic
+active_scenario : thermophilic
+
+# ------ Définition des scénarios ------
+scenarios:
+
+  # --- Scénario de référence BSM2 avec influent dynamique ---
+  BSM2_dynamic:
+    description: >
+      Simulation de référence BSM2 (Rosen et al., 2006).
+      Conditions mésophiles (35°C), influent dynamique journalier.
+    initial_states: BSM2            # Clé dans configs/states/initial_states.yaml
+    influent_mode: dynamic          # Clé dans configs/influent/influent.yaml
+    T_op:
+      value: 308.15
+      units: "K"
+      description: "Température opératoire (mésophile, 35°C)"
+    parameter_overrides: {}         # Aucune surcharge — utilise adm1_parameters.yaml
+
+  # --- Scénario BSM2 avec influent constant ---
+  BSM2_constant:
+    description: >
+      Simulation BSM2 avec influent constant (valeurs moyennes).
+      Utile pour atteindre un état stationnaire de référence.
+    initial_states: BSM2
+    influent_mode: constant
+    T_op:
+      value: 308.15
+      units: "K"
+      description: "Température opératoire (mésophile, 35°C)"
+    parameter_overrides: {}
+
+  # --- Scénario thermophile (exemple) ---
+  thermophilic:
+    description: >
+      Conditions thermophiles (55°C) avec influent dynamique BSM2.
+      Concentration en ammoniac plus élevée.
+    initial_states: BSM2
+    influent_mode: dynamic
+    T_op:
+      value: 328.15
+      units: "K"
+      description: "Température opératoire (thermophile, 55°C)"
+    parameter_overrides:
+      K_I_nh3:
+        value: 0.003
+        units: "M"
+        description: "Inhibition NH3 augmentée en thermophile"
+
+  # --- Scénario de validation batch (exemple) ---
+  batch_validation:
+    description: >
+      Simulation en mode batch (pas d'alimentation).
+      Utile pour valider les cinétiques biochimiques.
+    initial_states: BSM2
+    influent_mode: constant
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides:
+      q_ad:
+        value: 0.0
+        units: "m^3.d^-1"
+        description: "Débit nul — mode batch"
+
+  # --- Nouveau Scénario : Test Lisier ---
+  test_lisier:
+    description: >
+      Simulation d'un lisier de porc en régime mésophile.
+      Démarrage depuis l'état initial BSM2 pour assurer la stabilité numérique.
+    initial_states: BSM2
+    influent_mode: lisier_porc
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides:
+      q_ad:
+        value: 35.0
+        units: "m^3.d^-1"
+        description: "Débit réduit pour démarrage stable sur lisier porcin"
