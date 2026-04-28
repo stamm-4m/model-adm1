@@ -5,6 +5,8 @@ without modifying any code. Add a `hybrid:` block to a scenario in
 [`configs/Scenario.yaml`](../configs/Scenario.yaml), point it at one or
 more Python callables, and run as usual.
 
+![Hybrid plug points](images/hybrid_plug_points.png)
+
 | | Pure ADM1 | Hybrid mode |
 | --- | --- | --- |
 | What you change | nothing | one YAML block |

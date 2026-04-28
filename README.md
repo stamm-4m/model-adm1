@@ -1,85 +1,110 @@
-# ADM1 Reactor Simulation (Adapted from PyADM1)
+# ADM1 Reactor Simulation
 
-**Documentation:** see [docs/](docs/) — including [docs/adm1_biology.md](docs/adm1_biology.md), an introduction to the biology of ADM1 written for computer scientists, and [docs/hybrid.md](docs/hybrid.md), the guide to plugging ML models into ADM1.
+A Python implementation of the **Anaerobic Digestion Model No. 1** (ADM1).
+Adapted from [PyADM1](https://github.com/CaptainFerMag/PyADM1), restructured
+for clearer configuration, modular code, and **plug-and-play hybrid models**
+(classical ADM1 + your ML, no code changes required).
+
+![Architecture](docs/images/architecture.png)
 
 ---
 
-This project implements a simulation of an anaerobic digestion reactor based on the Anaerobic Digestion Model No.1 (ADM1).
+## 📖 Where to start
 
-The code is adapted from the original PyADM1 implementation, a Python tool for modeling and simulating anaerobic digestion processes in biogas reactors.
+| You want to … | Read |
+| --- | --- |
+| **Run the simulator** | [Quick start](#-quick-start) below |
+| **Understand the biology** (no biology background required) | [docs/adm1_biology.md](docs/adm1_biology.md) |
+| **Plug an ML model in** (sklearn / PyTorch / lookup / …) | [docs/hybrid.md](docs/hybrid.md) + [examples/](examples/) |
+| **Save & load a trained model** | [models/README.md](models/README.md) |
+| **Browse the project structure** | [§ Project structure](#-project-structure) |
 
-Source repository:
-https://github.com/CaptainFerMag/PyADM1
+**Authors**
+- Margaux Bonal — <margaux.bonal@inrae.fr>
+- David Camilo Corrales — <David-Camilo.Corrales-Munoz@inrae.fr>
 
-This adaptation restructures and extends the original implementation to support improved configuration handling, data preprocessing, and modular code organization.
+---
 
-## Modifications in This Repository
+## 🚀 Quick start
 
-Compared to the original PyADM1 code, this project introduces:
-
-* Modular project structure
-* YAML-based parameter configuration
-* CSV-based influent preprocessing
-* Improved data management
-* Clear separation between model, parameters, and influent data
-* Simplified simulation workflow
-
-## 📁 Project Structure
 ```bash
-ADM1/
-│
-├── main.py                     # Simulation entry point
-├── initial_states.py           # Initial state vector loader (38 ADM1 states)
-├── requirements.txt            # Python dependencies (pip install -r)
-│
-├── docs/                       # Extended documentation
-│   ├── README.md               # Index of the docs folder
-│   ├── adm1_biology.md         # ADM1 biology explained for computer scientists
-│   └── hybrid.md               # How to plug ML models into ADM1 (Tiers 1 + 2)
-│
-├── examples/                          # Hybrid-mode example callables
-│   ├── README.md
-│   ├── hybrid_rate_example.py         # Tier 1 — replace a process rate
-│   ├── hybrid_inhibition_example.py   # Tier 1 — replace an inhibition factor
-│   ├── hybrid_residual_example.py     # Tier 2 — residual correction on dy/dt
-│   └── hybrid_linear_regression_example.py  # real ML — linear regression for Rho_2
-│
-├── models/                     # Saved hybrid model artefacts (HybridSpec pairs)
-│   ├── README.md               # save recipes: linear_lstsq, sklearn, ...
-│   ├── rho2.spec.yaml          # spec sidecar
-│   └── rho2.npz                # model artefact (linear-regression coefficients)
-│
-├── configs/
-│   ├── adm1_parameters.yaml    # Intrinsic ADM1 kinetic / stoichiometric parameters
-│   ├── Initial_states.yaml     # Named initial state vectors (BSM2, …)
-│   ├── Influent.yaml           # Influent definitions (dynamic CSV or constant)
-│   ├── Scenario.yaml           # Active scenario selector + parameter overrides
-│   ├── Simulation.yaml         # ODE solver settings, time horizon, output options
-│   ├── Calibration.yaml        # Calibration framework (free parameters, bounds)
-│   ├── digester_influent.csv   # Raw influent data
-│   └── daily_averages.csv      # Daily-averaged influent (BSM2 dynamic)
-│
-├── src/
-│   ├── reactor.py              # ADM1 reactor model (ODE system, mass balances)
-│   ├── parameters.py           # Parameter loader with scenario overrides
-│   ├── influent.py             # Influent interface (dynamic / constant modes)
-│   └── acid_base.py            # Acid-base equilibrium solver (pH, HCO3⁻, NH3)
-│
-├── plots/
-│   ├── plot_biogas.py          # Biogas production diagnostics
-│   ├── plot_biomass.py         # Biomass population dynamics
-│   └── plot_pH_alkalinity.py   # pH and alkalinity diagnostics
-│
-└── results/
-    └── dynamic_out.csv         # Simulation output
+git clone https://github.com/stamm-4m/model-adm1.git
+cd model-adm1
+python -m venv .venv && source .venv/bin/activate     # or .venv\Scripts\activate on Windows
+pip install -r requirements.txt
+python main.py
 ```
 
+Default scenario is `BSM2_dynamic` — a reference mesophilic run. Pick a
+different one by changing `active_scenario:` at the top of
+[`configs/Scenario.yaml`](configs/Scenario.yaml).
 
-## Installation
+Outputs:
+- `results/dynamic_out.csv` — full state trajectory
+- `results/figures/biogas.png`, `biomass.png`, `pH_alkalinity.png` — diagnostic plots
 
-Python 3.10+ is recommended.
+---
 
-### 1. Clone the repository
+## 📁 Project structure
+
+```
+model-adm1/
+├── main.py                                # entry point
+├── initial_states.py                      # initial state vector (38 ADM1 states)
+├── requirements.txt
+│
+├── configs/                               # all configuration is YAML
+│   ├── adm1_parameters.yaml               # intrinsic ADM1 kinetic / stoichiometric parameters
+│   ├── Initial_states.yaml                # named initial state sets (BSM2, ...)
+│   ├── Influent.yaml                      # influent definitions (CSV time series or constant)
+│   ├── Scenario.yaml                      # active-scenario selector + per-scenario overrides
+│   ├── Simulation.yaml                    # ODE solver settings, time horizon, output
+│   ├── Calibration.yaml                   # calibration framework (free parameters, bounds)
+│   ├── digester_influent.csv              # raw influent data
+│   └── daily_averages.csv                 # daily-averaged BSM2 dynamic influent
+│
+├── src/
+│   ├── reactor.py                         # ADM1 ODE system, mass balances
+│   ├── parameters.py                      # parameter loader (with scenario overrides)
+│   ├── influent.py                        # influent interface
+│   ├── acid_base.py                       # acid-base equilibrium solver
+│   └── hybrid.py                          # hybrid hooks + HybridSpec loader
+│
+├── plots/                                 # diagnostic plotting
+│   ├── plot_biogas.py
+│   ├── plot_biomass.py
+│   └── plot_pH_alkalinity.py
+│
+├── examples/                              # plug-in examples for hybrid mode
+│   ├── README.md
+│   ├── hybrid_rate_example.py             # Tier 1 — replace a process rate
+│   ├── hybrid_inhibition_example.py       # Tier 1 — replace an inhibition factor
+│   ├── hybrid_residual_example.py         # Tier 2 — residual on dy/dt
+│   └── hybrid_linear_regression_example.py  # real ML — linear regression for Rho_2
+│
+├── models/                                # trained hybrid model artefacts
+│   ├── README.md                          # save recipes (linear_lstsq, sklearn, ...)
+│   ├── rho2.spec.yaml                     # HybridSpec sidecar (declarative)
+│   └── rho2.npz                           # model artefact (LR coefficients)
+│
+├── docs/                                  # extended documentation
+│   ├── README.md
+│   ├── adm1_biology.md                    # ADM1 biology for computer scientists
+│   ├── hybrid.md                          # full hybrid-mode guide
+│   ├── images/                            # rendered diagrams (committed)
+│   └── scripts/render_diagrams.py         # regenerate the diagrams
+│
+└── results/                               # outputs
+    └── dynamic_out.csv
+```
+
+---
+
+## 🛠 Installation
+
+Python 3.10 or newer is recommended.
+
+### 1. Clone
 
 ```bash
 git clone https://github.com/stamm-4m/model-adm1.git
@@ -88,361 +113,115 @@ cd model-adm1
 
 ### 2. Create and activate a virtual environment
 
-**Linux / macOS**
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-**Windows (PowerShell)**
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-**Windows (cmd.exe)**
-
-```bat
-python -m venv .venv
-.\.venv\Scripts\activate.bat
-```
+| Platform | Commands |
+| --- | --- |
+| **Linux / macOS** | `python3 -m venv .venv && source .venv/bin/activate` |
+| **Windows (PowerShell)** | `python -m venv .venv` then `.\.venv\Scripts\Activate.ps1` |
+| **Windows (cmd.exe)** | `python -m venv .venv` then `.\.venv\Scripts\activate.bat` |
 
 ### 3. Install dependencies
-
-All required packages are pinned in [requirements.txt](requirements.txt):
 
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. (Optional) Environment variables
-
-The simulator is configured entirely through YAML files in [configs/](configs/);
-no environment variables are required out of the box. If you want to override
-local paths or secrets in the future (e.g. a dataset directory), create a
-`.env` file at the project root — it is already listed in `.gitignore`.
-
-### Core dependencies
-
 | Package    | Purpose                              |
 | ---------- | ------------------------------------ |
-| NumPy      | Numerical operations, state vectors  |
+| NumPy      | numerical operations, state vectors  |
 | SciPy      | ODE solver (`solve_ivp`)             |
-| Pandas     | Influent CSV / results handling      |
-| Matplotlib | Diagnostic plots                     |
-| PyYAML     | Configuration loading                |
+| Pandas     | influent CSV / results handling      |
+| Matplotlib | diagnostic plots                     |
+| PyYAML     | configuration loading                |
 
-## Running the Simulation
+The simulator is configured entirely through YAML files in [`configs/`](configs/);
+no environment variables are required.
 
-1️⃣ **Pick a scenario** in `configs/Scenario.yaml` by setting `active_scenario:`
-(e.g. `BSM2_dynamic`, `BSM2_constant`, `thermophilic`, `batch_validation`, `pig_slurry_test`).
+---
 
-2️⃣ **Provide influent data** in `configs/Influent.yaml`:
-- `dynamic` mode reads a CSV time series (default: `configs/daily_averages.csv`)
-- `constant` mode uses fixed values defined directly in the YAML
+## ▶️ Running the simulation
 
-3️⃣ **Tune solver and output** in `configs/Simulation.yaml` (method, tolerances,
-time horizon, output step). Reference parameters live in `configs/adm1_parameters.yaml`
-and can be overridden per scenario via `parameter_overrides:` in `Scenario.yaml`.
+1. **Pick a scenario** in [`configs/Scenario.yaml`](configs/Scenario.yaml) by setting `active_scenario:`. Provided scenarios:
 
-4️⃣ **Run the simulation**:
+   | Scenario | What it does |
+   | --- | --- |
+   | `BSM2_dynamic` | Reference BSM2 mesophilic run with daily dynamic influent |
+   | `BSM2_constant` | Same, but with a constant-value influent |
+   | `thermophilic` | 55 °C operation with higher NH₃ inhibition constant |
+   | `batch_validation` | Batch mode (zero feed flow) — useful for validating kinetics |
+   | `hybrid_demo` | Tier 1 + 2 hybrid hooks via raw Python callables (see [docs/hybrid.md](docs/hybrid.md)) |
+   | `hybrid_lr_demo` | A real linear-regression model replaces `Rho_2`, loaded from `examples/` |
+   | `hybrid_lr_spec_demo` | Same model loaded via a `HybridSpec` sidecar in `models/` |
+   | `pig_slurry_test` | Pig-slurry feedstock under mesophilic conditions |
 
-```bash
-python main.py
-```
+2. **Provide influent data** in [`configs/Influent.yaml`](configs/Influent.yaml):
+   - `dynamic` — CSV time series (default: `configs/daily_averages.csv`)
+   - `constant` — fixed values defined directly in the YAML
 
-Results are written to `results/dynamic_out.csv`, and diagnostic figures
+3. **Tune the solver and outputs** in [`configs/Simulation.yaml`](configs/Simulation.yaml).
+   Reference parameters live in [`configs/adm1_parameters.yaml`](configs/adm1_parameters.yaml)
+   and can be overridden per scenario via `parameter_overrides:` in `Scenario.yaml`.
+
+4. **Run**:
+
+   ```bash
+   python main.py
+   ```
+
+Results are written to `results/dynamic_out.csv`. Diagnostic figures
 (biogas, biomass, pH/alkalinity) are saved to `results/figures/` when
 `save_figures: true` in `Simulation.yaml`.
 
-## Hybrid Mode (ADM1 + your ML model)
+---
+
+## 🤖 Hybrid mode — ADM1 + your ML model
 
 You can run the simulator either as **pure ADM1** (default) or as a
 **hybrid model** by adding a `hybrid:` block to your scenario in
-`configs/Scenario.yaml`. No code changes are required — point the YAML
-at any Python callable and it is wired into the ODE solver at startup.
+`configs/Scenario.yaml`. **No code changes are required.**
+
+![Hybrid plug points](docs/images/hybrid_plug_points.png)
 
 Three plug points are available, all optional:
 
-- **Rate override (Tier 1):** replace one of the 19 process rates `Rho_1 .. Rho_19`.
-- **Inhibition override (Tier 1):** replace one of the inhibition factors `I_5..I_12, I_nh3`.
-- **Residual correction (Tier 2):** add a UDE-style learned correction to `dy/dt`.
+| Plug point | Tier | What you can replace |
+| --- | --- | --- |
+| **Inhibition override** | 1 | one of `I_5..I_12, I_nh3` |
+| **Rate override** | 1 | one of `Rho_1..Rho_19` (the 19 process rates) |
+| **Residual correction** | 2 | additive learned correction on `dy/dt` for any state |
 
-To try it, set `active_scenario: hybrid_demo` in `configs/Scenario.yaml`
-and run `python main.py`. The startup banner will report which hooks are
-active.
+Each hook is a Python callable. The simulator loads it at startup from a YAML reference, in either of two forms:
 
-Full guide and callable signatures: [docs/hybrid.md](docs/hybrid.md).
-Worked examples: [examples/](examples/).
+- **Raw callable** — point at any function: `"my_pkg.my_module:my_function"` or `"./path/to/file.py:my_function"`.
+- **HybridSpec sidecar** — point at a saved trained model: `"models/my_rho.spec.yaml"` (the simulator loads the artefact for you).
 
-## Simulation Workflow
+To try it, set `active_scenario: hybrid_demo` (or one of the `hybrid_lr_*`
+scenarios) in `configs/Scenario.yaml` and run `python main.py`. The
+startup banner will report which hooks were wired in.
 
-```bash
-Influent Data (CSV)
-        │
-        ▼
-Influent Loader
-        │
-        ▼
-ADM1 Reactor Model
-        │
-        ▼
-ODE Solver (SciPy solve_ivp)
-        │
-        ▼
-Simulation Output (CSV)
-
-```
-
-## 📘 How parameters are structured in YAML files
-
-<details> <summary>📖 Click to expand</summary> <br>
-
-**Authors:**  
-- Margaux BONAL — <margaux.bonal@inrae.fr>  
-- David Camilo CORRALES — <David-Camilo.Corrales-Munoz@inrae.fr>  
-
-**Date:** April 2026  
+**Reading order**:
+1. [docs/hybrid.md](docs/hybrid.md) — full guide: signatures, schema, integration contract.
+2. [examples/](examples/) — four worked examples covering all three plug points.
+3. [models/README.md](models/README.md) — save recipes for `linear_lstsq`, `sklearn`, and how to add a new backend.
 
 ---
 
-## Abstract
+## 🆚 Compared to the original PyADM1
 
-This document proposes a reorganization of the ADM1 model parameters in order to transform a monolithic configuration file into a modular and structured architecture. The objective is to improve code readability, facilitate the management of simulation scenarios, and enable cleaner parameter calibration.
+This adaptation introduces:
 
----
+- Modular project structure (separate concerns: model, parameters, influent, scenarios).
+- YAML-based configuration (no more hand-editing parameter dicts).
+- CSV-based influent preprocessing.
+- Per-scenario overrides for temperature, kinetics, and operating conditions.
+- **Plug-and-play hybrid hooks** (rate / inhibition / residual) — see above.
+- Three diagnostic plots tuned for AD operators (biogas, biomass populations, pH & VFA/alk stability).
 
-## I. General Overview
-
-This work builds upon the Anaerobic Digestion Model No.1 (ADM1) implementation developed by Sadrmajd et al. [1], with the objective of reorganizing the parameter structure to make it more understandable and intuitive to use.
-
-### a. Context
-
-The current ADM1 implementation relies on a single configuration file:
-
-This file contains in a single location:
-
-- Initial states  
-- Stoichiometric parameters  
-- Kinetic parameters  
-- Physico-chemical parameters  
-- Reactor parameters  
-- General constants  
-
-This organization allows for quick setup but becomes limiting when:
-
-- Comparing multiple simulation cases  
-- Modifying operating conditions  
-- Calibrating parameters  
-- Enabling or disabling model components  
-- Improving readability, robustness, and maintainability  
-
-The objective of this work is therefore to reorganize ADM1 parameter management to provide a clearer, more modular, and easier-to-use configuration system.
+Three internal bug fixes vs the original PyADM1 are documented in the
+[`src/reactor.py`](src/reactor.py) module header.
 
 ---
 
-### Overview of ADM1
+## 📜 License
 
-ADM1 is a dynamic model describing anaerobic digestion processes. It enables the simulation of:
-
-- Biogas production (methane and carbon dioxide)  
-- Digester stability  
-- Accumulation of intermediates such as volatile fatty acids (VFA)  
-
-The model also incorporates:
-
-- Inhibition effects (ammonia, pH, hydrogen)  
-- Microbial population dynamics  
-- Operational conditions (feed rate, temperature)  
-
----
-
-## New Parameter Organization
-
-Currently, all parameters are stored in a single “all-in-one” YAML file:
-
-
-
-### General Organization
-
-The objective is to establish a parameter organization that is both simple and modular. To limit project complexity, the total number of files is intentionally restricted to six.
-
-This organization aims to clearly distinguish:
-
-- The intrinsic structure of the ADM1 model  
-- Site- or reactor-specific conditions  
-- Operational scenarios  
-- Calibration parameters  
-- Initial states  
-- Dynamic inputs  
-
----
-
-### Principles of the New Organization
-
-The new organization is based on a clear separation of responsibilities, where each file answers a specific question related to the simulation. This structure improves model understanding and usability while facilitating future extensions.
-
-| Dimension | Question | File |
-|----------|--------|------|
-| Initial state | What is the starting condition of the digester? | `states/` |
-| Inputs | What enters the digester? | `influent/` |
-| Simulation scenario | What do we want to test? | `scenarios/` |
-| Calibration | Which parameters are adjusted? | `calibration/` |
-| Numerical settings | How are the equations solved? | `simulation/` |
-| Model parameters | What are the reference ADM1 parameters? | `adm1_parameters.yaml` |
-
-**Table — Correspondence between ADM1 simulation dimensions and configuration files**
-
-This structure provides a simple yet effective separation of roles and forms the foundation of the proposed architecture.
-
----
-
-### File Structure
-
-The new architecture is based on five specific configuration files and one general parameter file.
-
-**File structure of the new ADM1 parameter organization**
-
----
-
-## Parameter Files Description
-
-### `configs/adm1_parameters.yaml`
-
-This file serves as the main reference for ADM1 model parameters. It contains all structural parameters defining the model behavior, independent of any specific simulation.
-
-It includes:
-
-- General constants (e.g., R, T_base, p_atm)  
-- Stoichiometric parameters  
-- Biochemical and kinetic parameters  
-- Inhibition parameters  
-- Physico-chemical parameters  
-- Default reactor parameters  
-- Elemental coefficients (carbon, nitrogen)  
-
-It must not contain simulation-dependent elements such as initial states, influent profiles, numerical settings, scenarios, or calibration parameters.
-
-👉 This file acts as a **central and stable parameter library**.
-
----
-
-### `configs/states/initial_states.yaml`
-
-This file defines the initial conditions of the system, i.e., the state vector at the beginning of the simulation.
-
-It includes:
-
-- Dissolved states  
-- Particulate states  
-- Ionic states  
-- Gas phase components  
-
-It allows multiple initial state configurations:
-
-- Default state  
-- BSM2 steady-state benchmark  
-- Startup conditions  
-- Thermophilic or high-ammonia conditions  
-
-👉 This separation clearly distinguishes model parameters from simulation starting conditions.
-
----
-
-### `configs/influent/influent.yaml`
-
-This file describes the system inputs, i.e., the composition and characteristics of the feed entering the digester.
-
-It includes:
-
-- Influent definition mode (constant or dynamic)  
-- Data file path (for dynamic influent)  
-- Expected data structure (columns, variables)  
-- Optional constant influent values  
-
-Two main use cases:
-
-- Dynamic influent (time series from CSV, e.g. `daily_averages.csv`)  
-- Constant influent (defined directly in YAML)  
-
-👉 This file formalizes influent handling and improves modularity.
-
----
-
-### `configs/scenarios/scenarios.yaml`
-
-This file defines simulation scenarios and acts as the main entry point for users.
-
-Each scenario includes:
-
-- Initial state  
-- Influent mode  
-- Simulation duration  
-- Parameter overrides  
-- Operating conditions  
-
-Examples include:
-
-- Standard mesophilic conditions  
-- Thermophilic high-ammonia conditions  
-- BSM2 validation  
-- Batch or CSTR simulations  
-- Scenarios with modified kinetics  
-
-It can also include advanced scenarios integrating thermodynamic constraints, as described in recent studies [2].
-
-👉 This file defines the **simulation context**, not the full parameter set.
-
----
-
-### `configs/calibration/calibration.yaml`
-
-This file defines the calibration framework, including all elements required for parameter estimation.
-
-It includes:
-
-- List of parameters to calibrate  
-- Parameter bounds  
-- Observed variables  
-- Objective function  
-- Optimization method  
-- Calibration steps  
-
-👉 This ensures a clear distinction between fixed model parameters and adjustable parameters.
-
----
-
-### `configs/simulation/simulation.yaml`
-
-This file defines the numerical settings for the simulation.
-
-It includes:
-
-- Solver selection (RK45, BDF)  
-- Numerical tolerances (rtol, atol)  
-- Simulation duration  
-- Output time step  
-- Output options  
-- ODE/DAE mode  
-
-👉 This separation distinguishes the biophysical model from its numerical resolution.
-
----
-
-## References
-
-1. Sadrmajd, P., Mannion, P., Howley, E., & Lens, P. N. L.  
-   *PyADM1: A Python Implementation of Anaerobic Digestion Model No. 1*  
-   https://doi.org/10.1101/2021.03.03.433746  
-
-2. Yeghiazaryan, S., Capson-Tojo, G., Steyer, J.-P., et al.  
-   *Modeling Thermophilic Syntrophic VFA Oxidation Using Thermodynamic Principles*  
-   https://doi.org/10.1016/j.biortech.2026.134365  
-
-
-
-</details
-```
+[Apache 2.0](LICENSE).

@@ -59,25 +59,7 @@ biochemical stages**, each performed by a different group of micro-organisms.
 Think of it as a 4-stage processing pipeline where each stage's output is
 the next stage's input:
 
-```mermaid
-flowchart LR
-    S0["<b>Disintegration</b><br/>X_xc → carbs + prot + lipids + inerts"]
-    S1["<b>Hydrolysis</b><br/>polymers → monomers<br/>carbs → sugars<br/>prot → amino acids<br/>lipids → LCFA"]
-    S2["<b>Acidogenesis</b><br/>sugars / aa<br/>→ VFAs + H₂ + CO₂"]
-    S3["<b>Acetogenesis</b><br/>LCFA, val, but, pro<br/>→ acetate + H₂"]
-    S4["<b>Methanogenesis</b><br/>acetate → CH₄ + CO₂<br/>4 H₂ + CO₂ → CH₄"]
-
-    S0 --> S1 --> S2 --> S3 --> S4
-
-    classDef stage0 fill:#eef0f3,stroke:#566573,color:#1c2833
-    classDef acido  fill:#fff0e6,stroke:#b9770e,color:#7f3b08
-    classDef aceto  fill:#f0eaff,stroke:#6c3483,color:#4a235a
-    classDef metha  fill:#e6f7f2,stroke:#117a65,color:#0b5345
-    class S0 stage0
-    class S1,S2 acido
-    class S3 aceto
-    class S4 metha
-```
+![ADM1 4-stage pipeline](images/adm1_pipeline.png)
 
 | # | Biochemical stage | What happens (in plain English) | Performed by |
 |---|---|---|---|
