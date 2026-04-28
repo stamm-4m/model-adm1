@@ -4,19 +4,19 @@ Class: ADM1Parameters
 
 Author: David Camilo Corrales
 Email: David-Camilo.Corrales-Munoz@inrae.fr
-Date: 16/03/2026 
+Date: 16/03/2026
 
 
-—  Réorganisé par Margaux Bonal 
-Email : margaux.bonal@inrae.fr
-Date : 04/2026
+—  Reorganised by Margaux Bonal
+Email: margaux.bonal@inrae.fr
+Date: 04/2026
 
 
-Charge les paramètres du modèle ADM1 depuis la nouvelle architecture modulaire :
-  - configs/adm1_parameters.yaml       : paramètres intrinsèques du modèle
-  - configs/scenarios/scenarios.yaml   : scénario actif et surcharges
-Les paramètres spécifiques à la simulation (T_op, q_ad, V_liq, etc.) peuvent être
-surchargés par le scénario actif.
+Loads ADM1 model parameters from the modular configuration:
+  - configs/adm1_parameters.yaml       : intrinsic model parameters
+  - configs/scenarios/scenarios.yaml   : active scenario and overrides
+Simulation-specific parameters (T_op, q_ad, V_liq, etc.) can be overridden
+by the active scenario.
 """
 
 import yaml
@@ -24,12 +24,12 @@ import yaml
 
 class ADM1Parameters:
     """
-    Charge et expose les paramètres du modèle ADM1.
+    Loads and exposes ADM1 model parameters.
 
-    Hiérarchie de résolution (priorité décroissante) :
-        1. parameter_overrides du scénario actif
-        2. Valeur T_op du scénario actif
-        3. adm1_parameters.yaml (référentiel central)
+    Resolution order (decreasing priority):
+        1. parameter_overrides of the active scenario
+        2. T_op value of the active scenario
+        3. adm1_parameters.yaml (central reference)
     """
 
     def __init__(
@@ -43,26 +43,26 @@ class ADM1Parameters:
         self._load()
 
     # ------------------------------------------------------------------
-    # Chargement
+    # Loading
     # ------------------------------------------------------------------
 
     def _load(self):
-        """Charge les paramètres de base puis applique les surcharges du scénario."""
+        """Load the base parameters then apply scenario overrides."""
         base = self._load_base_params()
         overrides = self._load_scenario_overrides()
         self.params = {**base, **overrides}
 
     def _load_base_params(self) -> dict:
-        """Charge et aplatit adm1_parameters.yaml."""
+        """Load and flatten adm1_parameters.yaml."""
         with open(self.params_file, "r") as f:
             raw = yaml.safe_load(f)
         return self._flatten(raw)
 
     def _load_scenario_overrides(self) -> dict:
         """
-        Lit le scénario actif dans scenarios.yaml et retourne :
-          - T_op du scénario (si présent)
-          - tous les parameter_overrides du scénario
+        Read the active scenario in scenarios.yaml and return:
+          - T_op of the scenario (if present)
+          - all parameter_overrides of the scenario
         """
         overrides = {}
         try:
@@ -77,14 +77,14 @@ class ADM1Parameters:
 
         scenario = raw.get("scenarios", {}).get(active_key, {})
 
-        # Température opératoire spécifique au scénario
+        # Scenario-specific operating temperature
         t_op = scenario.get("T_op")
         if t_op:
             overrides["T_op"] = float(t_op["value"])
-            # T_ad est un alias utilisé dans reactor.py
+            # T_ad is an alias kept for compatibility
             overrides["T_ad"] = float(t_op["value"])
 
-        # Surcharges de paramètres génériques
+        # Generic parameter overrides
         for key, val in scenario.get("parameter_overrides", {}).items():
             overrides[key] = float(val["value"])
 
@@ -93,8 +93,8 @@ class ADM1Parameters:
     @staticmethod
     def _flatten(params_dict: dict) -> dict:
         """
-        Aplatit le dictionnaire YAML imbriqué (catégorie → paramètre → {value, ...}).
-        Convertit toutes les valeurs numériques en float.
+        Flatten the nested YAML dict (category → parameter → {value, ...}).
+        Converts every numeric value to float.
         """
         flat = {}
         for category in params_dict.values():
@@ -106,17 +106,17 @@ class ADM1Parameters:
         return flat
 
     # ------------------------------------------------------------------
-    # Accès
+    # Access
     # ------------------------------------------------------------------
 
     def __getattr__(self, name: str) -> float:
         if name in self.params:
             return self.params[name]
-        raise AttributeError(f"Paramètre ADM1 '{name}' introuvable.")
+        raise AttributeError(f"ADM1 parameter '{name}' not found.")
 
     def get(self, name: str, default=None):
-        """Accès sécurisé avec valeur par défaut."""
+        """Safe access with a default value."""
         return self.params.get(name, default)
 
     def __repr__(self) -> str:
-        return f"<ADM1Parameters: {len(self.params)} paramètres chargés>"
+        return f"<ADM1Parameters: {len(self.params)} parameters loaded>"

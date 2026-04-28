@@ -6,34 +6,34 @@
 # Date: 09/04/2026
 
 # ============================================================
-# Réglages numériques de la simulation ADM1
+# Numerical settings for the ADM1 simulation
 # ============================================================
-# Ce fichier est dédié à la résolution numérique des équations.
-# Il est indépendant du contenu physique du modèle.
+# This file is dedicated to numerical resolution of the equations.
+# It is independent from the physical content of the model.
 # ============================================================
 
-# ------ Solveur ODE ------
+# ------ ODE solver ------
 solver:
-  method: "BDF"          # Options : "RK45", "DOP853", "BDF", "Radau", "LSODA"
-  rtol: 1.0e-6            # Tolérance relative
-  atol: 1.0e-8            # Tolérance absolue
-  max_step: 1.0           # Pas de temps maximum [d] (inf = sans contrainte)
-  dense_output: false     # Sortie dense (interpolation entre pas)
+  method: "BDF"          # Options: "RK45", "DOP853", "BDF", "Radau", "LSODA"
+  rtol: 1.0e-6            # Relative tolerance
+  atol: 1.0e-8            # Absolute tolerance
+  max_step: 1.0           # Maximum time step [d] (inf = unconstrained)
+  dense_output: false     # Dense output (interpolation between steps)
 
-# ------ Durée et pas de temps de sortie ------
+# ------ Duration and output time step ------
 time:
-  t_start: 0             # Temps initial [d]
-  t_end: null            # null = déterminé par la longueur des données d'influent à revoir parce que des fois l'influent est constant 
-  t_end_default_constant : 30 #durée par défaut pour influent alimenté constant
-  dt_out: 1.0            # Pas de temps de sortie [d] (1 = journalier)
+  t_start: 0             # Start time [d]
+  t_end: null            # null = determined by the length of the influent data; revisit because the influent is sometimes constant
+  t_end_default_constant : 30 # Default duration when the influent is constant
+  dt_out: 1.0            # Output time step [d] (1 = daily)
   units: "d"
 
-# ------ Options de sauvegarde des résultats ------
+# ------ Result-saving options ------
 output:
   save_results: true
   output_dir: "results/"
   filename: "dynamic_out.csv"
-  state_variables:        # Variables à sauvegarder (null = toutes)
+  state_variables:        # Variables to save (null = all)
     - S_su
     - S_aa
     - S_fa
@@ -73,7 +73,7 @@ output:
     - S_co2
     - S_nh4_ion
 
-# ------ Affichage de la progression ------
+# ------ Progress output ------
 verbose:
-  print_time: true        # Afficher le temps de simulation à chaque pas
-  print_interval: 1      # Afficher tous les N pas (pour ne pas saturer la console)
+  print_time: true        # Print simulation time at each step
+  print_interval: 1       # Print every N steps (avoids flooding the console)

@@ -7,30 +7,31 @@ Email: David-Camilo.Corrales-Munoz@inrae.fr
 Date: 16/03/2026
 
 
-—  Réorganisé par Margaux Bonal 
-Email : margaux.bonal@inrae.fr
-Date : 04/2026
+—  Reorganised by Margaux Bonal
+Email: margaux.bonal@inrae.fr
+Date: 04/2026
 
 
-Convention gaz utilisée dans ce fichier :
-- S_gas_h2  : état gaz H2   [kgCOD.m^-3]
-- S_gas_ch4 : état gaz CH4  [kgCOD.m^-3]
-- S_gas_co2 : état gaz CO2  [kmolC.m^-3]
+Gas-phase convention used in this file:
+- S_gas_h2  : H2 gas state   [kgCOD.m^-3]
+- S_gas_ch4 : CH4 gas state  [kgCOD.m^-3]
+- S_gas_co2 : CO2 gas state  [kmolC.m^-3]
 
-Les pressions partielles sont toujours calculées à partir de ces états :
+Partial pressures are always computed from these states:
 - p_gas_h2, p_gas_ch4, p_gas_co2 [bar]
-"""
-"""
-ADM1 Reactor Simulation (adapted from PyADM1).
-Corrections apportées dans cette version :
-  BUG 1 — compute_gas_transfer : Rho_T_10 utilisait S_IC au lieu de S_co2
-           → surestime le dégazage CO2, vide S_IC trop vite, fausse alcalinité et pH
-  BUG 2 — mass_balances / ADM1_ODE : les variables DAE (S_H_ion, S_hco3_ion, S_nh3…)
-           étaient figées à leurs valeurs initiales car compute_acid_base_equilibrium
-           n'était jamais appelé → pH et équilibres acido-basiques artificiels
-  BUG 3 — s_12 dans le bilan carbone : terme de consommation de C_IC manquant
-           pour la méthanogenèse hydrogénotrophe (4H2 + CO2 → CH4 + 2H2O)
 
+
+ADM1 Reactor Simulation (adapted from PyADM1).
+Bug fixes introduced in this version:
+  BUG 1 — compute_gas_transfer: Rho_T_10 used S_IC instead of S_co2
+           → over-estimated CO2 stripping, drained S_IC too fast, distorted
+             alkalinity and pH.
+  BUG 2 — mass_balances / ADM1_ODE: the DAE variables (S_H_ion, S_hco3_ion,
+           S_nh3…) were frozen at their initial values because
+           compute_acid_base_equilibrium was never called → artificial pH and
+           acid-base equilibria.
+  BUG 3 — s_12 in the carbon balance: the C_IC consumption term was missing
+           for hydrogenotrophic methanogenesis (4H2 + CO2 → CH4 + 2H2O).
 """
 
 import numpy as np
@@ -116,11 +117,11 @@ class ADM1Reactor:
         gas = self._last_gas
         state = self._last_state
 
-        desintegration = rho["Rho_1"]
-        hydrolyse = rho["Rho_2"] + rho["Rho_3"] + rho["Rho_4"]
-        acidogenese = rho["Rho_5"] + rho["Rho_6"]
-        acetogenese = rho["Rho_7"] + rho["Rho_8"] + rho["Rho_9"] + rho["Rho_10"]
-        methanogenese = rho["Rho_11"] + rho["Rho_12"]
+        disintegration = rho["Rho_1"]
+        hydrolysis = rho["Rho_2"] + rho["Rho_3"] + rho["Rho_4"]
+        acidogenesis = rho["Rho_5"] + rho["Rho_6"]
+        acetogenesis = rho["Rho_7"] + rho["Rho_8"] + rho["Rho_9"] + rho["Rho_10"]
+        methanogenesis = rho["Rho_11"] + rho["Rho_12"]
         decay = sum(rho[f"Rho_{i}"] for i in range(13, 20))
 
         pH = -np.log10(max(state["S_H_ion"], 1e-14))
@@ -135,11 +136,11 @@ class ADM1Reactor:
         cod = compute_total_cod(state, self.param)
 
         return {
-            "desintegration": desintegration,
-            "hydrolyse": hydrolyse,
-            "acidogenese": acidogenese,
-            "acetogenese": acetogenese,
-            "methanogenese": methanogenese,
+            "disintegration": disintegration,
+            "hydrolysis": hydrolysis,
+            "acidogenesis": acidogenesis,
+            "acetogenesis": acetogenesis,
+            "methanogenesis": methanogenesis,
             "decay": decay,
             "q_gas": gas["q_gas"],
             "pH": pH,

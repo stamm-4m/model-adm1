@@ -6,11 +6,11 @@ Author: Margaux Bonal
 Email: margaux.bonal@inrae.fr
 Date: 04/2026
 
-Charge le vecteur d'état initial depuis :
-  configs/Initial_states.yaml  (jeu d'états nommés)
-  configs/Scenario.yaml        (sélection du jeu actif)
+Loads the initial state vector from:
+  configs/Initial_states.yaml  (named state sets)
+  configs/Scenario.yaml        (active set selector)
 
-Le vecteur y0 est retourné dans l'ordre canonique des 38 variables ADM1.
+The y0 vector is returned in the canonical order of the 38 ADM1 variables.
 """
 
 import numpy as np
@@ -19,7 +19,7 @@ from src.acid_base import compute_required_strong_ion_for_pH
 from src.parameters import ADM1Parameters
 
 
-# Ordre canonique des 38 variables d'état ADM1
+# Canonical order of the 38 ADM1 state variables
 STATE_VARIABLES = [
     "S_su", "S_aa", "S_fa", "S_va", "S_bu", "S_pro", "S_ac",
     "S_h2", "S_ch4", "S_IC", "S_IN", "S_I",
@@ -34,9 +34,9 @@ STATE_VARIABLES = [
 
 class InitialState:
     """
-    Charge et expose le vecteur d'état initial y0 pour le solveur ODE.
+    Loads and exposes the initial state vector y0 for the ODE solver.
 
-    Usage :
+    Usage:
         init = InitialState()
         y0 = init.get_vector()
     """
@@ -52,11 +52,11 @@ class InitialState:
         self._load()
 
     # ------------------------------------------------------------------
-    # Chargement
+    # Loading
     # ------------------------------------------------------------------
 
     def _load(self):
-        """Détermine le jeu d'états actif et le charge."""
+        """Determine the active state set and load it."""
         active_key = self._get_active_key()
         with open(self.states_file, "r") as f:
             raw = yaml.safe_load(f)
@@ -64,8 +64,8 @@ class InitialState:
         if active_key not in raw:
             available = list(raw.keys())
             raise KeyError(
-                f"Jeu d'états initiaux '{active_key}' introuvable dans "
-                f"{self.states_file}. Disponibles : {available}"
+                f"Initial-state set '{active_key}' not found in "
+                f"{self.states_file}. Available: {available}"
             )
 
         state_set = raw[active_key]
@@ -90,7 +90,7 @@ class InitialState:
             )
 
     def _get_active_key(self) -> str:
-        """Lit le scénario actif pour en extraire la clé d'états initiaux."""
+        """Read the active scenario and extract the initial-state set key."""
         try:
             with open(self.scenarios_file, "r") as f:
                 raw = yaml.safe_load(f)
@@ -105,27 +105,27 @@ class InitialState:
             return "BSM2"
 
     # ------------------------------------------------------------------
-    # Accès
+    # Access
     # ------------------------------------------------------------------
 
     def get_vector(self) -> np.ndarray:
         """
-        Retourne le vecteur y0 dans l'ordre canonique des 38 variables ADM1.
-        Lève une erreur si une variable est manquante dans le fichier YAML.
+        Return the y0 vector in the canonical order of the 38 ADM1 variables.
+        Raises an error if any variable is missing from the YAML file.
         """
         missing = [v for v in STATE_VARIABLES if v not in self.state_dict]
         if missing:
             raise KeyError(
-                f"Variables manquantes dans l'état initial : {missing}"
+                f"Missing variables in the initial state: {missing}"
             )
         return np.array([self.state_dict[v] for v in STATE_VARIABLES])
 
     def get_dict(self) -> dict:
-        """Retourne le dictionnaire complet des états initiaux."""
+        """Return the full dict of initial states."""
         return dict(self.state_dict)
 
     def __repr__(self) -> str:
         return (
             f"<InitialState: {len(self.state_dict)} variables, "
-            f"{len(STATE_VARIABLES)} dans le vecteur ODE>"
+            f"{len(STATE_VARIABLES)} in the ODE vector>"
         )

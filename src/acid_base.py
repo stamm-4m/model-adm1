@@ -1,10 +1,10 @@
 """
-Module d'équilibre acido-basique ADM1.
+ADM1 acid-base equilibrium module.
 
-Objectif :
-- recalculer pH, HCO3-, CO2, NH3, NH4+
-- éviter que S_IC devienne négatif ou incohérent
-- garder la charge électroneutre cohérente
+Goals:
+- recompute pH, HCO3-, CO2, NH3, NH4+
+- prevent S_IC from going negative or becoming inconsistent
+- keep the charge balance (electroneutrality) consistent
 """
 
 import numpy as np
@@ -28,30 +28,30 @@ def _safe_positive(value: float, floor: float) -> float:
 
 def _vfa_cod_to_molar(concentration_kgcod_m3: float, species: str) -> float:
     """
-    Convertit une concentration VFA ADM1 de kgCOD.m^-3 vers kmol.m^-3.
+    Convert an ADM1 VFA concentration from kgCOD.m^-3 to kmol.m^-3.
 
-    Les constantes d'acidité sont définies en M (= kmol.m^-3), donc cette
-    conversion doit être faite avant le bilan de charge.
+    Acidity constants are defined in M (= kmol.m^-3), so this conversion
+    must be done before evaluating the charge balance.
     """
     return max(concentration_kgcod_m3, 0.0) / COD_EQUIVALENTS[species]
 
 
 def kgcod_m3_to_mol_l(concentration_kgcod_m3: float, species: str) -> float:
     """
-    Conversion explicite ADM1 : kgCOD.m^-3 -> mol.L^-1.
+    Explicit ADM1 conversion: kgCOD.m^-3 -> mol.L^-1.
 
-    Numériquement, mol.L^-1 = kmol.m^-3, donc la valeur est identique à la
-    conversion molaire utilisée dans le bilan de charge.
+    Numerically mol.L^-1 = kmol.m^-3, so the value matches the molar
+    conversion used in the charge balance.
     """
     return _vfa_cod_to_molar(concentration_kgcod_m3, species)
 
 
 def _charge_balance(H: float, state: dict, param) -> tuple[float, dict]:
     """
-    Calcule le résidu d'électroneutralité pour une concentration donnée en H+.
+    Compute the electroneutrality residual for a given H+ concentration.
 
-    Les VFA totaux sont stockés dans l'état en kgCOD.m^-3.
-    Pour le bilan de charge, ils sont convertis en kmol.m^-3 (= M).
+    Total VFA concentrations are stored in the state in kgCOD.m^-3.
+    For the charge balance they are converted to kmol.m^-3 (= M).
     """
 
     H = _safe_positive(H, H_FLOOR)
@@ -111,12 +111,13 @@ def compute_required_strong_ion_for_pH(
     solve_for: str = "S_anion",
 ) -> float:
     """
-    Calcule l'ion fort requis pour fermer l'électroneutralité à un pH cible.
+    Compute the strong-ion concentration required to close electroneutrality
+    at a target pH.
 
     Parameters
     ----------
     solve_for : {"S_anion", "S_cation"}
-        Choisit quel ion fort est ajusté pour satisfaire le bilan de charge.
+        Selects which strong ion is adjusted to satisfy the charge balance.
     """
     H = 10.0 ** (-float(target_pH))
     _, species = _charge_balance(H, state, param)
@@ -135,15 +136,15 @@ def compute_required_strong_ion_for_pH(
         return max(max(state["S_cation"], 0.0) + positive_terms - negative_terms, 0.0)
     if solve_for == "S_cation":
         return max(max(state["S_anion"], 0.0) - positive_terms + negative_terms, 0.0)
-    raise ValueError("solve_for doit valoir 'S_anion' ou 'S_cation'")
+    raise ValueError("solve_for must be either 'S_anion' or 'S_cation'")
 
 
 def compute_acid_base_equilibrium(state: dict, param, tol: float = 1e-12, max_iter: int = 100) -> dict:
     """
-    Résout l'équilibre acido-basique ADM1 à partir de :
-    S_IC, S_IN, VFA totaux, cations, anions.
+    Solve the ADM1 acid-base equilibrium from:
+    S_IC, S_IN, total VFAs, cations, anions.
 
-    Retourne un dictionnaire mis à jour :
+    Returns an updated dict containing:
     - S_H_ion
     - pH
     - S_va_ion
@@ -158,7 +159,7 @@ def compute_acid_base_equilibrium(state: dict, param, tol: float = 1e-12, max_it
 
     H_guess = _safe_positive(state.get("S_H_ion", 1e-7), H_FLOOR)
 
-    # Recherche bornée sur une large plage de pH pour éviter tout Newton non borné.
+    # Bracketed search over a wide pH range to avoid any unbounded Newton step.
     H_min = H_FLOOR
     H_max = 1.0
     log_grid = np.linspace(np.log10(H_min), np.log10(H_max), max_iter + 20)
@@ -183,7 +184,7 @@ def compute_acid_base_equilibrium(state: dict, param, tol: float = 1e-12, max_it
         previous_residual = current_residual
 
     if bracket is None:
-        # Pas de changement de signe: on garde le point donnant le plus petit résidu.
+        # No sign change found: fall back to the point with the smallest residual.
         candidates = candidate_grid
         H = min(candidates, key=lambda h: abs(_charge_balance(h, state, param)[0]))
     else:
@@ -221,10 +222,10 @@ def compute_acid_base_equilibrium(state: dict, param, tol: float = 1e-12, max_it
 
 def compute_total_cod(state: dict, param=None) -> dict:
     """
-    Calcule des indicateurs de DCO totale.
+    Compute total-COD diagnostics.
 
-    Toutes les variables organiques ADM1 sont déjà en kgCOD.m^-3.
-    On ne compte pas S_IC, S_IN, ions, gaz CO2, H+, etc.
+    All ADM1 organic variables are already in kgCOD.m^-3. We do NOT count
+    S_IC, S_IN, ions, CO2 in the gas phase, H+, etc.
     """
 
     soluble_cod = (
@@ -265,8 +266,8 @@ def compute_total_cod(state: dict, param=None) -> dict:
         "COD_particulate": particulate_cod,
         "COD_liquid_total": total_liquid_cod,
         "COD_gas": gas_cod,
-        # Somme de concentrations seulement : utile pour debug rapide,
-        # mais pas un inventaire de matière physiquement conservatif.
+        # Sum of concentrations only: useful for quick debugging, but NOT a
+        # physically conservative mass inventory.
         "COD_total_with_gas": total_cod_with_gas,
     }
 

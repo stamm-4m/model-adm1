@@ -7,365 +7,365 @@
 # Date: 09/04/2026
 
 # ============================================================
-# ADM1 Parameters - Référentiel central du modèle
+# ADM1 Parameters - Central reference of the model
 # ============================================================
-# Ce fichier contient uniquement les paramètres intrinsèques
-# au modèle ADM1, indépendants des conditions de simulation.
-# Valeurs issues de Rosen et al. (2006) BSM2 report
-# et Batstone et al. (2002)
+# This file contains only the intrinsic ADM1 model parameters,
+# independent of the simulation conditions.
+# Values from Rosen et al. (2006) BSM2 report
+# and Batstone et al. (2002).
 # ============================================================
 
-# ------ Constantes générales ------
+# ------ General constants ------
 constants:
   R:
     value: 0.083145
     units: "bar.M^-1.K^-1"
-    description: "Constante universelle des gaz parfaits"
+    description: "Universal gas constant"
   T_base:
     value: 298.15
     units: "K"
-    description: "Température de référence"
+    description: "Reference temperature"
   p_atm:
     value: 1.013
     units: "bar"
-    description: "Pression atmosphérique"
+    description: "Atmospheric pressure"
 
-# ------ Paramètres stœchiométriques ------
+# ------ Stoichiometric parameters ------
 stoichiometric_parameters:
   f_sI_xc:
     value: 0.1
     units: "-"
-    description: "Fraction d'inertes solubles dans le COD total"
+    description: "Soluble-inert fraction of total COD"
   f_xI_xc:
     value: 0.2
     units: "-"
-    description: "Fraction d'inertes particulaires dans le COD total"
+    description: "Particulate-inert fraction of total COD"
   f_ch_xc:
     value: 0.2
     units: "-"
-    description: "Fraction de glucides dans le COD total"
+    description: "Carbohydrate fraction of total COD"
   f_pr_xc:
     value: 0.2
     units: "-"
-    description: "Fraction de protéines dans le COD total"
+    description: "Protein fraction of total COD"
   f_li_xc:
     value: 0.3
     units: "-"
-    description: "Fraction de lipides dans le COD total"
+    description: "Lipid fraction of total COD"
   N_xc:
     value: 0.00268
     units: "kmol N.kg^-1COD"
-    description: "Teneur en azote de la matière particulaire composite (0.0376/14)"
+    description: "Nitrogen content of composite particulate matter (0.0376/14)"
   N_I:
     value: 0.0042
     units: "kmol N.kg^-1COD"
-    description: "Teneur en azote des inertes particulaires (0.06/14)"
+    description: "Nitrogen content of particulate inerts (0.06/14)"
   N_aa:
     value: 0.007
     units: "kmol N.kg^-1COD"
-    description: "Teneur en azote des acides aminés"
+    description: "Nitrogen content of amino acids"
   N_bac:
     value: 0.00571
     units: "kmol N.kg^-1COD"
-    description: "Teneur en azote des bactéries (0.08/14)"
+    description: "Nitrogen content of bacteria (0.08/14)"
   C_xc:
     value: 0.02786
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone de la matière particulaire composite"
+    description: "Carbon content of composite particulate matter"
   C_sI:
     value: 0.03
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone des inertes solubles"
+    description: "Carbon content of soluble inerts"
   C_ch:
     value: 0.0313
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone des glucides"
+    description: "Carbon content of carbohydrates"
   C_pr:
     value: 0.03
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone des protéines"
+    description: "Carbon content of proteins"
   C_li:
     value: 0.022
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone des lipides"
+    description: "Carbon content of lipids"
   C_xI:
     value: 0.03
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone des inertes particulaires"
+    description: "Carbon content of particulate inerts"
   C_su:
     value: 0.0313
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone des sucres"
+    description: "Carbon content of sugars"
   C_aa:
     value: 0.03
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone des acides aminés"
+    description: "Carbon content of amino acids"
   C_fa:
     value: 0.0217
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone des acides gras"
+    description: "Carbon content of fatty acids"
   C_bu:
     value: 0.025
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone du butyrate"
+    description: "Carbon content of butyrate"
   C_pro:
     value: 0.0268
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone du propionate"
+    description: "Carbon content of propionate"
   C_ac:
     value: 0.0313
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone de l'acétate"
+    description: "Carbon content of acetate"
   C_bac:
     value: 0.0313
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone des bactéries"
+    description: "Carbon content of bacteria"
   C_va:
     value: 0.024
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone du valérate"
+    description: "Carbon content of valerate"
   C_ch4:
     value: 0.0156
     units: "kmol C.kg^-1COD"
-    description: "Teneur en carbone du méthane"
+    description: "Carbon content of methane"
   f_fa_li:
     value: 0.95
     units: "-"
-    description: "Fraction de lipides convertis en acides gras"
+    description: "Lipid fraction converted to fatty acids"
   f_h2_su:
     value: 0.19
     units: "-"
-    description: "Fraction d'H2 produite à partir des sucres"
+    description: "H2 fraction produced from sugars"
   f_bu_su:
     value: 0.13
     units: "-"
-    description: "Fraction de butyrate produite à partir des sucres"
+    description: "Butyrate fraction produced from sugars"
   f_pro_su:
     value: 0.27
     units: "-"
-    description: "Fraction de propionate produite à partir des sucres"
+    description: "Propionate fraction produced from sugars"
   f_ac_su:
     value: 0.41
     units: "-"
-    description: "Fraction d'acétate produite à partir des sucres"
+    description: "Acetate fraction produced from sugars"
   f_h2_aa:
     value: 0.06
     units: "-"
-    description: "Fraction d'H2 produite à partir des acides aminés"
+    description: "H2 fraction produced from amino acids"
   f_va_aa:
     value: 0.23
     units: "-"
-    description: "Fraction de valérate produite à partir des acides aminés"
+    description: "Valerate fraction produced from amino acids"
   f_bu_aa:
     value: 0.26
     units: "-"
-    description: "Fraction de butyrate produite à partir des acides aminés"
+    description: "Butyrate fraction produced from amino acids"
   f_pro_aa:
     value: 0.05
     units: "-"
-    description: "Fraction de propionate produite à partir des acides aminés"
+    description: "Propionate fraction produced from amino acids"
   f_ac_aa:
     value: 0.40
     units: "-"
-    description: "Fraction d'acétate produite à partir des acides aminés"
+    description: "Acetate fraction produced from amino acids"
   Y_su:
     value: 0.1
     units: "-"
-    description: "Coefficient de rendement pour les sucres"
+    description: "Yield coefficient for sugars"
   Y_aa:
     value: 0.08
     units: "-"
-    description: "Coefficient de rendement pour les acides aminés"
+    description: "Yield coefficient for amino acids"
   Y_fa:
     value: 0.06
     units: "-"
-    description: "Coefficient de rendement pour les acides gras"
+    description: "Yield coefficient for fatty acids"
   Y_c4:
     value: 0.06
     units: "-"
-    description: "Coefficient de rendement pour le butyrate/valérate"
+    description: "Yield coefficient for butyrate/valerate"
   Y_pro:
     value: 0.04
     units: "-"
-    description: "Coefficient de rendement pour le propionate"
+    description: "Yield coefficient for propionate"
   Y_ac:
     value: 0.05
     units: "-"
-    description: "Coefficient de rendement pour l'acétate"
+    description: "Yield coefficient for acetate"
   Y_h2:
     value: 0.06
     units: "-"
-    description: "Coefficient de rendement pour l'hydrogène"
+    description: "Yield coefficient for hydrogen"
 
-# ------ Paramètres biochimiques et cinétiques ------
+# ------ Biochemical and kinetic parameters ------
 biochemical_parameters:
   k_dis:
     value: 0.5
     units: "d^-1"
-    description: "Taux de désintégration"
+    description: "Disintegration rate"
   k_hyd_ch:
     value: 10
     units: "d^-1"
-    description: "Taux d'hydrolyse des glucides"
+    description: "Carbohydrate hydrolysis rate"
   k_hyd_pr:
     value: 10
     units: "d^-1"
-    description: "Taux d'hydrolyse des protéines"
+    description: "Protein hydrolysis rate"
   k_hyd_li:
     value: 10
     units: "d^-1"
-    description: "Taux d'hydrolyse des lipides"
+    description: "Lipid hydrolysis rate"
   K_S_IN:
     value: 1.0e-4
     units: "M"
-    description: "Constante de demi-saturation pour l'azote inorganique"
+    description: "Half-saturation constant for inorganic nitrogen"
   k_m_su:
     value: 30
     units: "d^-1"
-    description: "Taux d'uptake maximum pour les sucres"
+    description: "Maximum uptake rate for sugars"
   K_S_su:
     value: 0.5
     units: "kgCOD.m^-3"
-    description: "Constante de demi-saturation pour les sucres"
+    description: "Half-saturation constant for sugars"
   k_m_aa:
     value: 50
     units: "d^-1"
-    description: "Taux d'uptake maximum pour les acides aminés"
+    description: "Maximum uptake rate for amino acids"
   K_S_aa:
     value: 0.3
     units: "kgCOD.m^-3"
-    description: "Constante de demi-saturation pour les acides aminés"
+    description: "Half-saturation constant for amino acids"
   k_m_fa:
     value: 6
     units: "d^-1"
-    description: "Taux d'uptake maximum pour les acides gras"
+    description: "Maximum uptake rate for fatty acids"
   K_S_fa:
     value: 0.4
     units: "kgCOD.m^-3"
-    description: "Constante de demi-saturation pour les acides gras"
+    description: "Half-saturation constant for fatty acids"
   k_m_c4:
     value: 20
     units: "d^-1"
-    description: "Taux d'uptake maximum pour le butyrate/valérate"
+    description: "Maximum uptake rate for butyrate/valerate"
   K_S_c4:
     value: 0.2
     units: "kgCOD.m^-3"
-    description: "Constante de demi-saturation pour le butyrate/valérate"
+    description: "Half-saturation constant for butyrate/valerate"
   k_m_pro:
     value: 13
     units: "d^-1"
-    description: "Taux d'uptake maximum pour le propionate"
+    description: "Maximum uptake rate for propionate"
   K_S_pro:
     value: 0.1
     units: "kgCOD.m^-3"
-    description: "Constante de demi-saturation pour le propionate"
+    description: "Half-saturation constant for propionate"
   k_m_ac:
     value: 8
     units: "d^-1"
-    description: "Taux d'uptake maximum pour l'acétate"
+    description: "Maximum uptake rate for acetate"
   K_S_ac:
     value: 0.15
     units: "kgCOD.m^-3"
-    description: "Constante de demi-saturation pour l'acétate"
+    description: "Half-saturation constant for acetate"
   k_m_h2:
     value: 35
     units: "d^-1"
-    description: "Taux d'uptake maximum pour l'hydrogène"
+    description: "Maximum uptake rate for hydrogen"
   K_S_h2:
     value: 7.0e-6
     units: "kgCOD.m^-3"
-    description: "Constante de demi-saturation pour l'hydrogène"
+    description: "Half-saturation constant for hydrogen"
   k_dec_X_su:
     value: 0.02
     units: "d^-1"
-    description: "Taux de décès de la biomasse sucres"
+    description: "Sugar-biomass decay rate"
   k_dec_X_aa:
     value: 0.02
     units: "d^-1"
-    description: "Taux de décès de la biomasse acides aminés"
+    description: "Amino-acid-biomass decay rate"
   k_dec_X_fa:
     value: 0.02
     units: "d^-1"
-    description: "Taux de décès de la biomasse acides gras"
+    description: "Fatty-acid-biomass decay rate"
   k_dec_X_c4:
     value: 0.02
     units: "d^-1"
-    description: "Taux de décès de la biomasse butyrate/valérate"
+    description: "Butyrate/valerate-biomass decay rate"
   k_dec_X_pro:
     value: 0.02
     units: "d^-1"
-    description: "Taux de décès de la biomasse propionate"
+    description: "Propionate-biomass decay rate"
   k_dec_X_ac:
     value: 0.02
     units: "d^-1"
-    description: "Taux de décès de la biomasse acétate"
+    description: "Acetate-biomass decay rate"
   k_dec_X_h2:
     value: 0.02
     units: "d^-1"
-    description: "Taux de décès de la biomasse hydrogène"
+    description: "Hydrogen-biomass decay rate"
 
-# ------ Paramètres d'inhibition ------
+# ------ Inhibition parameters ------
 inhibition_parameters:
   pH_UL_aa:
     value: 5.5
     units: "-"
-    description: "Limite supérieure de pH pour les acides aminés"
+    description: "Upper pH limit for amino-acid degraders"
   pH_LL_aa:
     value: 4.0
     units: "-"
-    description: "Limite inférieure de pH pour les acides aminés"
+    description: "Lower pH limit for amino-acid degraders"
   pH_UL_ac:
     value: 7.0
     units: "-"
-    description: "Limite supérieure de pH pour l'acétate"
+    description: "Upper pH limit for acetate degraders"
   pH_LL_ac:
     value: 6.0
     units: "-"
-    description: "Limite inférieure de pH pour l'acétate"
+    description: "Lower pH limit for acetate degraders"
   pH_UL_h2:
     value: 6.0
     units: "-"
-    description: "Limite supérieure de pH pour l'hydrogène"
+    description: "Upper pH limit for hydrogen degraders"
   pH_LL_h2:
     value: 5.0
     units: "-"
-    description: "Limite inférieure de pH pour l'hydrogène"
+    description: "Lower pH limit for hydrogen degraders"
   K_I_h2_fa:
     value: 5.0e-6
     units: "kgCOD.m^-3"
-    description: "Constante d'inhibition par H2 pour les acides gras"
+    description: "H2 inhibition constant for fatty acids"
   K_I_h2_c4:
     value: 1.0e-5
     units: "kgCOD.m^-3"
-    description: "Constante d'inhibition par H2 pour le butyrate/valérate"
+    description: "H2 inhibition constant for butyrate/valerate"
   K_I_h2_pro:
     value: 3.5e-6
     units: "kgCOD.m^-3"
-    description: "Constante d'inhibition par H2 pour le propionate"
+    description: "H2 inhibition constant for propionate"
   K_I_nh3:
     value: 0.0018
     units: "M"
-    description: "Constante d'inhibition par l'ammoniac libre"
+    description: "Inhibition constant for free ammonia"
 
-# ------ Paramètres physico-chimiques ------
+# ------ Physico-chemical parameters ------
 physico_chemical_parameters:
   K_a_va:
     value: 1.38e-5
     units: "M"
-    description: "Constante de dissociation acide du valérate"
+    description: "Acid dissociation constant of valerate"
   K_a_bu:
     value: 1.5e-5
     units: "M"
-    description: "Constante de dissociation acide du butyrate"
+    description: "Acid dissociation constant of butyrate"
   K_a_pro:
     value: 1.32e-5
     units: "M"
-    description: "Constante de dissociation acide du propionate"
+    description: "Acid dissociation constant of propionate"
   K_a_ac:
     value: 1.74e-5
     units: "M"
-    description: "Constante de dissociation acide de l'acétate"
-  # Rajout pour le calcul de DCO
+    description: "Acid dissociation constant of acetate"
+  # Added for COD computation
   K_w:
     value: 2.08e-14
     units: "M"
@@ -382,67 +382,67 @@ physico_chemical_parameters:
   k_A_B_va:
     value: 1.0e10
     units: "M^-1.d^-1"
-    description: "Constante de vitesse d'association pour le valérate"
+    description: "Association rate constant for valerate"
   k_A_B_bu:
     value: 1.0e10
     units: "M^-1.d^-1"
-    description: "Constante de vitesse d'association pour le butyrate"
+    description: "Association rate constant for butyrate"
   k_A_B_pro:
     value: 1.0e10
     units: "M^-1.d^-1"
-    description: "Constante de vitesse d'association pour le propionate"
+    description: "Association rate constant for propionate"
   k_A_B_ac:
     value: 1.0e10
     units: "M^-1.d^-1"
-    description: "Constante de vitesse d'association pour l'acétate"
+    description: "Association rate constant for acetate"
   k_A_B_co2:
     value: 1.0e10
     units: "M^-1.d^-1"
-    description: "Constante de vitesse d'association pour le CO2"
+    description: "Association rate constant for CO2"
   k_A_B_IN:
     value: 1.0e10
     units: "M^-1.d^-1"
-    description: "Constante de vitesse d'association pour l'azote inorganique"
+    description: "Association rate constant for inorganic nitrogen"
   k_p:
     value: 5.0e4
     units: "m^3.d^-1.bar^-1"
-    description: "Constante de friction pour la sortie de gaz"
+    description: "Friction constant for gas outflow"
   k_L_a:
     value: 200.0
     units: "d^-1"
-    description: "Coefficient de transfert liquide-gaz"
+    description: "Liquid-gas transfer coefficient"
   K_H_co2:
     value: 0.0271
     units: "Mliq.bar^-1"
-    description: "Constante de Henry pour le CO2 (à T_base)"
+    description: "Henry constant for CO2 (at T_base)"
   K_H_ch4:
     value: 0.00116
     units: "Mliq.bar^-1"
-    description: "Constante de Henry pour le CH4 (à T_base)"
+    description: "Henry constant for CH4 (at T_base)"
   K_H_h2:
     value: 7.38e-4
     units: "Mliq.bar^-1"
-    description: "Constante de Henry pour le H2 (à T_base)"
+    description: "Henry constant for H2 (at T_base)"
 
-# ------ Paramètres par défaut du réacteur ------
+# ------ Default reactor parameters ------
 reactor_parameters:
   V_liq:
     value: 3400
     units: "m^3"
-    description: "Volume liquide du réacteur (valeur BSM2 par défaut)"
+    description: "Reactor liquid volume (default BSM2 value)"
   V_gas:
     value: 300
     units: "m^3"
-    description: "Volume gazeux du réacteur (valeur BSM2 par défaut)"
+    description: "Reactor gas volume (default BSM2 value)"
   V_ad:
     value: 3700
     units: "m^3"
-    description: "Volume total du réacteur (V_liq + V_gas)"
+    description: "Total reactor volume (V_liq + V_gas)"
   q_ad:
     value: 178.4674
     units: "m^3.d^-1"
-    description: "Débit d'entrée au digesteur anaérobie (valeur BSM2 par défaut)"
+    description: "Anaerobic digester inflow (default BSM2 value)"
   T_op:
     value: 308.15
     units: "K"
-    description: "Température opératoire par défaut (mésophile 35°C)"
+    description: "Default operating temperature (mesophilic, 35 C)"

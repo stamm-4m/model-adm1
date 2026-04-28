@@ -7,63 +7,63 @@
 # Date: 09/04/2026
 
 # ============================================================
-# Configuration de l'influent
+# Influent configuration
 # ============================================================
-# Ce fichier définit les conditions d'alimentation du digesteur.
-# Deux modes sont disponibles : dynamique (fichier CSV) ou constant.
-# Le mode actif est sélectionné dans scenarios/scenarios.yaml.
+# This file defines the digester feed conditions.
+# Two modes are available: dynamic (CSV file) or constant.
+# The active mode is selected in scenarios/scenarios.yaml.
 # ============================================================
 
-# ------ Mode dynamique (série temporelle) ------
+# ------ Dynamic mode (time series) ------
 dynamic:
-  description: "Influent dynamique issu de données journalières BSM2"
+  description: "Dynamic influent from BSM2 daily data"
   type: dynamic
   file_path: "configs/daily_averages.csv"
   time_column: "time"
   time_units: "d"
   variables:
-    # Variables solubles
-    - S_su      # Monosaccharides          [kgCOD.m^-3]
-    - S_aa      # Acides aminés             [kgCOD.m^-3]
+    # Soluble variables
+    - S_su      # Monosaccharides           [kgCOD.m^-3]
+    - S_aa      # Amino acids               [kgCOD.m^-3]
     - S_fa      # LCFA                      [kgCOD.m^-3]
-    - S_va      # Valérate                  [kgCOD.m^-3]
+    - S_va      # Valerate                  [kgCOD.m^-3]
     - S_bu      # Butyrate                  [kgCOD.m^-3]
     - S_pro     # Propionate                [kgCOD.m^-3]
-    - S_ac      # Acétate                   [kgCOD.m^-3]
-    - S_h2      # Hydrogène dissous         [kgCOD.m^-3]
-    - S_ch4     # Méthane dissous           [kgCOD.m^-3]
-    - S_IC      # Carbone inorganique       [kmol C.m^-3]
-    - S_IN      # Azote inorganique         [kmol N.m^-3]
-    - S_I       # COD soluble inerte        [kgCOD.m^-3]
-    # Variables particulaires
-    - X_xc      # Matière composite         [kgCOD.m^-3]
-    - X_ch      # Glucides                  [kgCOD.m^-3]
-    - X_pr      # Protéines                 [kgCOD.m^-3]
-    - X_li      # Lipides                   [kgCOD.m^-3]
-    - X_su      # Biomasse sucres           [kgCOD.m^-3]
-    - X_aa      # Biomasse acides aminés    [kgCOD.m^-3]
-    - X_fa      # Biomasse LCFA             [kgCOD.m^-3]
-    - X_c4      # Biomasse C4               [kgCOD.m^-3]
-    - X_pro     # Biomasse propionate       [kgCOD.m^-3]
-    - X_ac      # Biomasse acétate          [kgCOD.m^-3]
-    - X_h2      # Biomasse hydrogène        [kgCOD.m^-3]
-    - X_I       # COD particulaire inerte   [kgCOD.m^-3]
+    - S_ac      # Acetate                   [kgCOD.m^-3]
+    - S_h2      # Dissolved hydrogen        [kgCOD.m^-3]
+    - S_ch4     # Dissolved methane         [kgCOD.m^-3]
+    - S_IC      # Inorganic carbon          [kmol C.m^-3]
+    - S_IN      # Inorganic nitrogen        [kmol N.m^-3]
+    - S_I       # Soluble inert COD         [kgCOD.m^-3]
+    # Particulate variables
+    - X_xc      # Composite material        [kgCOD.m^-3]
+    - X_ch      # Carbohydrates             [kgCOD.m^-3]
+    - X_pr      # Proteins                  [kgCOD.m^-3]
+    - X_li      # Lipids                    [kgCOD.m^-3]
+    - X_su      # Sugar biomass             [kgCOD.m^-3]
+    - X_aa      # Amino-acid biomass        [kgCOD.m^-3]
+    - X_fa      # LCFA biomass              [kgCOD.m^-3]
+    - X_c4      # C4 biomass                [kgCOD.m^-3]
+    - X_pro     # Propionate biomass        [kgCOD.m^-3]
+    - X_ac      # Acetate biomass           [kgCOD.m^-3]
+    - X_h2      # Hydrogen biomass          [kgCOD.m^-3]
+    - X_I       # Particulate inert COD     [kgCOD.m^-3]
     # Ions
-    - S_cation  # Cations forts             [M]
-    - S_anion   # Anions forts              [M]
+    - S_cation  # Strong cations            [M]
+    - S_anion   # Strong anions             [M]
 
-# ------ Mode constant ------ Il faut définir toutes les variables 
+# ------ Constant mode ------ All variables must be defined
 constant:
-  description: "Influent constant - valeurs moyennes BSM2 (Rosen et al., 2006)"
+  description: "Constant influent — BSM2 mean values (Rosen et al., 2006)"
   type: constant
   pH:
     value: 7.2
     units: "-"
-  # Débit
+  # Flow rate
   q_ad:
     value: 178.4674
     units: "m^3.d^-1"
-  # Variables solubles
+  # Soluble variables
   S_su:
     value: 0.01
     units: "kgCOD.m^-3"
@@ -100,7 +100,7 @@ constant:
   S_I:
     value: 0.02
     units: "kgCOD.m^-3"
-  # Variables particulaires
+  # Particulate variables
   X_xc:
     value: 2.0
     units: "kgCOD.m^-3"
@@ -146,13 +146,13 @@ constant:
 
 
 
-# ------ Nouvel Influent : Lisier de Porc (Forte charge Azote) ------
-lisier_porc:
-  description: "Lisier de porc mésophile recalibré pour un démarrage avec pH plus réaliste"
+# ------ New influent: pig slurry (high-nitrogen load) ------
+pig_slurry:
+  description: "Pig slurry under mesophilic conditions, recalibrated for a more realistic start-up pH"
   type: constant
   pH:     {value: 7.2, units: "-"}
 
-  # Solubles
+  # Soluble
   S_su:   {value: 0.15, units: "kgCOD.m^-3"}
   S_aa:   {value: 0.80, units: "kgCOD.m^-3"}
   S_fa:   {value: 0.05, units: "kgCOD.m^-3"}
@@ -166,7 +166,7 @@ lisier_porc:
   S_IN:   {value: 0.08, units: "kmol N.m^-3"}
   S_I:    {value: 0.30, units: "kgCOD.m^-3"}
 
-  # Particulaires
+  # Particulate
   X_xc:   {value: 6.0, units: "kgCOD.m^-3"}
   X_ch:   {value: 1.0, units: "kgCOD.m^-3"}
   X_pr:   {value: 2.5, units: "kgCOD.m^-3"}

@@ -4,21 +4,21 @@ Class: Influent
 
 Author: David Camilo Corrales
 Email: David-Camilo.Corrales-Munoz@inrae.fr
-Date: 16/03/2026 
+Date: 16/03/2026
 
 
-—  Réorganisé par Margaux Bonal 
-Email : margaux.bonal@inrae.fr
-Date : 04/2026
+—  Reorganised by Margaux Bonal
+Email: margaux.bonal@inrae.fr
+Date: 04/2026
 
 
-Charge la configuration de l'influent depuis :
-  configs/influent/influent.yaml      (définition des modes)
-  configs/scenarios/scenarios.yaml    (sélection du mode actif)
+Loads the influent configuration from:
+  configs/influent/influent.yaml      (mode definitions)
+  configs/scenarios/scenarios.yaml    (active mode selector)
 
-Deux modes :
-  - dynamic  : série temporelle issue d'un fichier CSV
-  - constant : valeurs constantes définies dans influent.yaml
+Two modes:
+  - dynamic  : time series read from a CSV file
+  - constant : constant values defined in influent.yaml
 """
 
 import numpy as np
@@ -28,7 +28,7 @@ from src.acid_base import compute_required_strong_ion_for_pH
 from src.parameters import ADM1Parameters
 
 
-# Variables d'entrée ADM1 (ordre de lecture du CSV pour le mode dynamique)
+# ADM1 influent variables (CSV column order for the dynamic mode)
 INFLUENT_VARS = [
     "S_su", "S_aa", "S_fa", "S_va", "S_bu", "S_pro", "S_ac",
     "S_h2", "S_ch4", "S_IC", "S_IN", "S_I",
@@ -40,12 +40,12 @@ INFLUENT_VARS = [
 
 class Influent:
     """
-    Gère les données d'entrée du digesteur.
+    Manages the digester input data.
 
-    Usage :
+    Usage:
         inf = Influent()
-        inf.get(step)       -> dict avec clés "S_su_in", "S_aa_in", ...
-        inf.get_time()      -> np.ndarray des instants (mode dynamique uniquement)
+        inf.get(step)       -> dict with keys "S_su_in", "S_aa_in", ...
+        inf.get_time()      -> np.ndarray of time points (dynamic mode only)
     """
 
     def __init__(
@@ -62,11 +62,11 @@ class Influent:
         self._load()
 
     # ------------------------------------------------------------------
-    # Chargement
+    # Loading
     # ------------------------------------------------------------------
 
     def _load(self):
-        """Lit la configuration et charge les données selon le mode actif."""
+        """Read the configuration and load data according to the active mode."""
         mode_key = self._get_active_mode()
 
         with open(self.influent_file, "r") as f:
@@ -74,15 +74,15 @@ class Influent:
 
         if not isinstance(raw, dict):
             raise ValueError(
-                f"Le fichier {self.influent_file} est vide ou malformé "
-                f"(yaml.safe_load a retourné : {type(raw).__name__})."
+                f"File {self.influent_file} is empty or malformed "
+                f"(yaml.safe_load returned: {type(raw).__name__})."
             )
 
         if mode_key is None or mode_key not in raw:
             available = list(raw.keys())
             raise KeyError(
-                f"Mode d'influent '{mode_key}' introuvable dans "
-                f"{self.influent_file}. Disponibles : {available}"
+                f"Influent mode '{mode_key}' not found in "
+                f"{self.influent_file}. Available: {available}"
             )
 
         config = raw[mode_key]
@@ -112,14 +112,14 @@ class Influent:
                     solve_for="S_anion",
                 )
 
-            # Temps fictif : [0, 1] pour permettre solve_ivp de démarrer
+            # Dummy time vector [0, 1] so solve_ivp has something to start with
             self._time = np.array([0.0, 1.0])
 
         else:
-            raise ValueError(f"Mode d'influent inconnu : '{self.mode}'")
+            raise ValueError(f"Unknown influent mode: '{self.mode}'")
 
     def _get_active_mode(self) -> str:
-        """Lit le scénario actif et retourne la clé du mode d'influent."""
+        """Read the active scenario and return the influent-mode key."""
         try:
             with open(self.scenarios_file, "r") as f:
                 raw = yaml.safe_load(f)
@@ -137,13 +137,13 @@ class Influent:
             return "dynamic"
 
     # ------------------------------------------------------------------
-    # Accès
+    # Access
     # ------------------------------------------------------------------
 
     def get(self, step: int) -> dict:
         """
-        Retourne un dictionnaire des variables d'influent au pas `step`.
-        Les clés sont suffixées par '_in' (ex. "S_su_in").
+        Return a dict of influent variables at time step `step`.
+        Keys are suffixed with '_in' (e.g. "S_su_in").
         """
         if self.mode == "dynamic":
             step = min(step, len(self._time) - 1)
@@ -152,7 +152,7 @@ class Influent:
             return {var + "_in": self._constant_values.get(var, 0.0) for var in INFLUENT_VARS}
 
     def get_time(self) -> np.ndarray:
-        """Retourne le vecteur de temps de la simulation."""
+        """Return the simulation time vector."""
         return self._time
 
     def __repr__(self) -> str:

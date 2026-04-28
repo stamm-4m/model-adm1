@@ -37,7 +37,7 @@ from plots.plot_pH_alkalinity import plot_pH_alkalinity
 
 def main():
     # ============================================================
-    # 0. Chemins de configuration
+    # 0. Configuration paths
     # ============================================================
     PARAMS_FILE = "configs/adm1_parameters.yaml"
     STATES_FILE = "configs/Initial_states.yaml"
@@ -47,17 +47,17 @@ def main():
 
 
     # ============================================================
-    # 1. Outils utilitaires
+    # 1. Utility helpers
     # ============================================================
     def load_yaml_file(path: str) -> dict:
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Fichier introuvable : {path}")
+            raise FileNotFoundError(f"File not found: {path}")
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         if data is None:
             return {}
         if not isinstance(data, dict):
-            raise ValueError(f"Le fichier YAML {path} doit contenir un dictionnaire.")
+            raise ValueError(f"YAML file {path} must contain a mapping.")
         return data
 
 
@@ -86,11 +86,11 @@ def main():
         np.ndarray : 1-D array of time evaluation points (d).
         """
         if dt_out <= 0:
-            raise ValueError("dt_out doit être strictement positif.")
+            raise ValueError("dt_out must be strictly positive.")
         if t_end <= t_start:
-            raise ValueError("t_end doit être strictement supérieur à t_start.")
+            raise ValueError("t_end must be strictly greater than t_start.")
 
-        # inclut explicitement le point final si possible
+        # Explicitly include the final point if possible
         n_steps = int(np.floor((t_end - t_start) / dt_out)) + 1
         t_eval = t_start + np.arange(n_steps) * dt_out
 
@@ -107,7 +107,7 @@ def main():
 
 
     # ============================================================
-    # 2. Chargement de la configuration
+    # 2. Configuration loading
     # ============================================================
     sim_cfg = load_yaml_file(SIMULATION_FILE)
 
@@ -122,7 +122,7 @@ def main():
 
 
     # ============================================================
-    # 3. Chargement paramètres / états initiaux / influent
+    # 3. Load parameters / initial states / influent
     # ============================================================
     # Load intrinsic ADM1 parameters (kinetic, stoichiometric, physico-chemical)
     param = ADM1Parameters(
@@ -146,8 +146,8 @@ def main():
     # Instantiate the ADM1 reactor model (holds all ODE equations and process rates)
     reactor = ADM1Reactor(param, constants=None)
 
-    # Reprojette l'état initial sur l'équilibre acido-basique pour démarrer
-    # avec pH / HCO3- / CO2 / NH3 / NH4+ cohérents.
+    # Re-project the initial state onto the acid-base equilibrium so the run
+    # starts with consistent pH / HCO3- / CO2 / NH3 / NH4+.
     initial_state_dict = reactor.unpack_state(y0_full)
     initial_acid_base = compute_acid_base_equilibrium(initial_state_dict, param)
     y0_full = reactor._apply_acid_base_to_state_vector(y0_full, initial_acid_base)
@@ -155,19 +155,19 @@ def main():
 
 
     # ============================================================
-    # 4. Construction du temps de simulation
+    # 4. Build the simulation time vector
     # ============================================================
     time_data = np.asarray(influent.get_time(), dtype=float) # time axis of the influent data (d)
 
     if len(time_data) == 0:
-        raise ValueError("Influent vide : aucun point de temps trouvé.")
+        raise ValueError("Empty influent: no time points found.")
 
     t_start = safe_float(time_cfg.get("t_start", 0), 0)
 
     t_end_cfg = time_cfg.get("t_end", None)
 
     if t_end_cfg is None:
-        # si influent constant ou temps court, on impose une durée par défaut raisonnable
+        # If the influent is constant or short, fall back to a sensible default duration
         t_end = safe_float(t_end_cfg, 365.0)
     
     elif getattr(influent, "mode", "constant") == "dynamic":
@@ -189,7 +189,7 @@ def main():
 
 
     # ============================================================
-    # 5. Préchargement de l'influent pour éviter les appels répétés
+    # 5. Pre-cache the influent to avoid repeated lookups in the hot loop
     # ============================================================
     # The ODE solver calls ADM1_wrapper thousands of times per simulation day.
     # Reading the influent object once per day step and caching results in a list
@@ -219,7 +219,7 @@ def main():
 
 
     # ============================================================
-    # 6. Bannière de démarrage
+    # 6. Startup banner
     # ============================================================
     def print_startup_banner():
         """
@@ -234,52 +234,52 @@ def main():
 
         # Compute hydraulic retention time HRT = V_liq / q_ad (d)
         try:
-            trh = param.V_liq / param.q_ad
+            hrt = param.V_liq / param.q_ad
         except Exception:
-            trh = float("nan")
+            hrt = float("nan")
 
         # Classify operating temperature regime
         T_op_C = param.T_op - 273.15    # convert from Kelvin to Celsius
         if T_op_C < 20:
-            regime = "psychrophile"
+            regime = "psychrophilic"
         elif T_op_C < 42:
-            regime = "mésophile"
+            regime = "mesophilic"
         elif T_op_C < 55:
-            regime = "intermédiaire"
+            regime = "intermediate"
         else:
-            regime = "thermophile"
+            regime = "thermophilic"
 
         inf0 = get_influent_for_time(0.0)
 
         print("\n" + "━" * 66)
-        print("  ADM1 — Configuration de la simulation")
+        print("  ADM1 — Simulation configuration")
         print("━" * 66)
 
-        print("\n  ── Scénario ────────────────────────────────────────────────────")
-        print(f"  Nom actif   : {active_key}")
+        print("\n  ── Scenario ────────────────────────────────────────────────────")
+        print(f"  Active name : {active_key}")
         if sc_desc:
             print(f"  Description : {sc_desc}")
 
-        print("\n  ── Réacteur ────────────────────────────────────────────────────")
-        print(f"  Volume liquide (V_liq) : {param.V_liq:.1f} m³")
-        print(f"  Volume gazeux  (V_gas) : {param.V_gas:.1f} m³")
-        print(f"  Débit influent (q_ad)  : {param.q_ad:.1f} m³/j")
-        print(f"  TRH                   : {trh:.1f} j")
-        print(f"  Température           : {T_op_C:.1f} °C ({regime})")
+        print("\n  ── Reactor ─────────────────────────────────────────────────────")
+        print(f"  Liquid volume (V_liq) : {param.V_liq:.1f} m³")
+        print(f"  Gas volume    (V_gas) : {param.V_gas:.1f} m³")
+        print(f"  Influent flow (q_ad)  : {param.q_ad:.1f} m³/d")
+        print(f"  HRT                   : {hrt:.1f} d")
+        print(f"  Temperature           : {T_op_C:.1f} °C ({regime})")
 
         print("\n  ── Influent ────────────────────────────────────────────────────")
-        print(f"  Mode : {getattr(influent, 'mode', 'inconnu')}")
+        print(f"  Mode : {getattr(influent, 'mode', 'unknown')}")
         print(f"  S_su_in : {inf0.get('S_su_in', float('nan')):.4f} kgCOD/m³")
         print(f"  S_aa_in : {inf0.get('S_aa_in', float('nan')):.4f} kgCOD/m³")
         print(f"  X_xc_in : {inf0.get('X_xc_in', float('nan')):.4f} kgCOD/m³")
         print(f"  S_IC_in : {inf0.get('S_IC_in', float('nan')):.4f} kmolC/m³")
         print(f"  S_IN_in : {inf0.get('S_IN_in', float('nan')):.4f} kmolN/m³")
 
-        print("\n  ── Solveur numérique ───────────────────────────────────────────")
-        print(f"  Méthode      : {solver_cfg.get('method', 'BDF')}")
-        print(f"  rtol / atol  : {solver_cfg.get('rtol', 1e-5):.0e} / {solver_cfg.get('atol', 1e-7):.0e}")
-        print(f"  Durée simulée: {t_start:.1f} → {t_end:.1f} j")
-        print(f"  Pas de sortie: {dt_out:.2f} j/point")
+        print("\n  ── Numerical solver ────────────────────────────────────────────")
+        print(f"  Method        : {solver_cfg.get('method', 'BDF')}")
+        print(f"  rtol / atol   : {solver_cfg.get('rtol', 1e-5):.0e} / {solver_cfg.get('atol', 1e-7):.0e}")
+        print(f"  Time horizon  : {t_start:.1f} → {t_end:.1f} d")
+        print(f"  Output step   : {dt_out:.2f} d/point")
         print("━" * 66 + "\n")
 
 
@@ -288,7 +288,7 @@ def main():
 
 
     # ============================================================
-    # 7. Résumé journalier
+    # 7. Daily summary
     # ============================================================
     _last_printed_bucket = [-1]  # mutable container so the nested function can update it
     _wall_start = [0.0]          # wall-clock time at simulation start, for elapsed time display
@@ -297,32 +297,32 @@ def main():
 
 
     def print_day_summary(t_day: float, summary: dict, elapsed_wall: float):
-        def flag_inhib(val, seuil_warn=0.5, seuil_crit=0.2):
-            if val < seuil_crit:
-                return "⚠ fort"
-            if val < seuil_warn:
-                return "~ modéré"
+        def flag_inhib(val, warn_threshold=0.5, crit_threshold=0.2):
+            if val < crit_threshold:
+                return "⚠ strong"
+            if val < warn_threshold:
+                return "~ moderate"
             return "✓ ok"
 
         print("\n" + "━" * 62)
-        print(f"  Jour {t_day:>6.1f} d   |   wall-clock : {elapsed_wall:>6.1f} s")
+        print(f"  Day {t_day:>6.1f} d   |   wall-clock: {elapsed_wall:>6.1f} s")
         print("─" * 62)
-        print(f"  pH             : {summary.get('pH', float('nan')):8.3f}")
-        print(f"  Débit biogaz   : {summary.get('q_gas', float('nan')):8.2f} m³/d")
-        print(f"  P CH₄ (gaz)    : {summary.get('p_gas_ch4_bar', float('nan')):8.4f} bar")
-        print("  Inhibitions :")
-        print(f"    pH acidogènes  {summary.get('I_pH_aa', float('nan')):6.3f}  {flag_inhib(summary.get('I_pH_aa', 1.0))}")
-        print(f"    NH₃ acétogènes {summary.get('I_nh3', float('nan')):6.3f}  {flag_inhib(summary.get('I_nh3', 1.0))}")
-        print(f"    H₂ LCFA        {summary.get('I_h2_fa', float('nan')):6.3f}  {flag_inhib(summary.get('I_h2_fa', 1.0))}")
-        print("  DCO :")
-        print(f"  DCO liquide     : {summary.get('COD_liquid_total', float('nan')):8.3f} kgCOD/m³")
-        print(f"  Stock total     : {summary.get('COD_total_inventory', float('nan')):8.1f} kgCOD")
+        print(f"  pH              : {summary.get('pH', float('nan')):8.3f}")
+        print(f"  Biogas flow     : {summary.get('q_gas', float('nan')):8.2f} m³/d")
+        print(f"  P CH₄ (gas)     : {summary.get('p_gas_ch4_bar', float('nan')):8.4f} bar")
+        print("  Inhibitions:")
+        print(f"    pH acidogens     {summary.get('I_pH_aa', float('nan')):6.3f}  {flag_inhib(summary.get('I_pH_aa', 1.0))}")
+        print(f"    NH₃ methanogens  {summary.get('I_nh3', float('nan')):6.3f}  {flag_inhib(summary.get('I_nh3', 1.0))}")
+        print(f"    H₂ LCFA          {summary.get('I_h2_fa', float('nan')):6.3f}  {flag_inhib(summary.get('I_h2_fa', 1.0))}")
+        print("  COD:")
+        print(f"  Liquid COD      : {summary.get('COD_liquid_total', float('nan')):8.3f} kgCOD/m³")
+        print(f"  Total inventory : {summary.get('COD_total_inventory', float('nan')):8.1f} kgCOD")
 
         print("━" * 62)
 
 
     # ============================================================
-    # 8. Wrapper solveur
+    # 8. Solver wrapper
     # ============================================================
     def ADM1_wrapper(t, y):
         # Inject the current influent into the reactor (updates feed concentrations)
@@ -351,7 +351,7 @@ def main():
                 if elapsed_wall - _last_progress_wall[0] >= 30.0:
                     _last_progress_wall[0] = elapsed_wall
                     maybe_print(
-                        f"  Progression solveur : t_max atteint = {_max_t_seen[0]:.3f} j | wall-clock : {elapsed_wall:>6.1f} s",
+                        f"  Solver progress: t_max reached = {_max_t_seen[0]:.3f} d | wall-clock: {elapsed_wall:>6.1f} s",
                         verbose_enabled,
                     )
 
@@ -359,10 +359,10 @@ def main():
 
 
     # ============================================================
-    # 9. Résolution ODE
+    # 9. ODE integration
     # ============================================================
     maybe_print("━" * 62, verbose_enabled)
-    maybe_print(f"  Simulation ADM1 — méthode {solver_cfg.get('method', 'BDF')}", verbose_enabled)
+    maybe_print(f"  ADM1 simulation — method {solver_cfg.get('method', 'BDF')}", verbose_enabled)
     maybe_print(f"  t_start={t_start:.1f} d  →  t_end={t_end:.1f} d  (dt_out={dt_out} d)", verbose_enabled)
     maybe_print("━" * 62 + "\n", verbose_enabled)
 
@@ -382,15 +382,15 @@ def main():
     )
 
     elapsed = time.time() - t0
-    print(f"\nTemps de simulation : {int(elapsed // 60)} min {int(elapsed % 60)} s")
-    print(f"Succès : {sol.success} | Message : {sol.message}")
+    print(f"\nSimulation time: {int(elapsed // 60)} min {int(elapsed % 60)} s")
+    print(f"Success: {sol.success} | Message: {sol.message}")
 
     if not sol.success:
-        raise RuntimeError(f"Échec solveur : {sol.message}")
+        raise RuntimeError(f"Solver failure: {sol.message}")
 
 
     # ============================================================
-    # 10. Sauvegarde des résultats
+    # 10. Save results
     # ============================================================
     reconstructed_rows = []
     for dynamic_row in sol.y.T:
@@ -425,23 +425,23 @@ def main():
     if output_cfg.get("save_results", True):
         out_path = os.path.join(output_dir, output_cfg.get("filename", "dynamic_out.csv"))
         df.to_csv(out_path, index=False)
-        print(f"\nRésultats sauvegardés → {out_path} ✅")
+        print(f"\nResults saved → {out_path} ✅")
 
 
     # ============================================================
-    # 11. Graphiques robustes
+    # 11. Plots
     # ============================================================
     save_figures = bool(output_cfg.get("save_figures", True))
     show_figures = bool(output_cfg.get("show_figures", True))
     fig_dir = os.path.join(output_dir, "figures")
     os.makedirs(fig_dir, exist_ok=True)
 
-    print("\nGénération des graphiques...")
+    print("\nGenerating plots...")
 
     n_points = len(df)
 
     if n_points < 2:
-        print("Trop peu de points pour générer des graphiques fiables. Graphes ignorés.")
+        print("Too few points to generate reliable plots. Skipping.")
     else:
         try:
             plot_biogas(
@@ -450,9 +450,9 @@ def main():
                 save_path=os.path.join(fig_dir, "biogas.png") if save_figures else None,
                 show=show_figures,
             )
-            print("Graphique biogaz généré ✅")
+            print("Biogas plot generated ✅")
         except Exception as e:
-            print(f"Graphique biogaz ignoré : {e}")
+            print(f"Biogas plot skipped: {e}")
 
         try:
             plot_biomass(
@@ -460,9 +460,9 @@ def main():
                 save_path=os.path.join(fig_dir, "biomass.png") if save_figures else None,
                 show=show_figures,
             )
-            print("Graphique biomasse généré ✅")
+            print("Biomass plot generated ✅")
         except Exception as e:
-            print(f"Graphique biomasse ignoré : {e}")
+            print(f"Biomass plot skipped: {e}")
 
         try:
             plot_pH_alkalinity(
@@ -471,38 +471,38 @@ def main():
                 save_path=os.path.join(fig_dir, "pH_alkalinity.png") if save_figures else None,
                 show=show_figures,
             )
-            print("Graphique pH/alcalinité généré ✅")
+            print("pH/alkalinity plot generated ✅")
         except Exception as e:
-            print(f"Graphique pH/alcalinité ignoré : {e}")
+            print(f"pH/alkalinity plot skipped: {e}")
 
-        # Visualisation rapide seulement si assez de points
+        # Quick overview plot — only if enough points
         try:
             fig, axes = plt.subplots(3, 1, figsize=(10, 9), sharex=True)
 
-            axes[0].plot(df["time"], df["S_ac"], label="Acétate (S_ac)")
+            axes[0].plot(df["time"], df["S_ac"], label="Acetate (S_ac)")
             axes[0].set_ylabel("kgCOD.m⁻³")
             axes[0].legend()
             axes[0].grid(True)
 
-            axes[1].plot(df["time"], df["S_ch4"], label="Méthane (S_ch4)")
+            axes[1].plot(df["time"], df["S_ch4"], label="Methane (S_ch4)")
             axes[1].set_ylabel("kgCOD.m⁻³")
             axes[1].legend()
             axes[1].grid(True)
 
-            axes[2].plot(df["time"], df["S_h2"], label="Hydrogène (S_h2)")
+            axes[2].plot(df["time"], df["S_h2"], label="Hydrogen (S_h2)")
             axes[2].set_ylabel("kgCOD.m⁻³")
-            axes[2].set_xlabel(f"Temps [{time_cfg.get('units', 'd')}]")
+            axes[2].set_xlabel(f"Time [{time_cfg.get('units', 'd')}]")
             axes[2].legend()
             axes[2].grid(True)
 
-            fig.suptitle("Simulation ADM1", fontsize=13)
+            fig.suptitle("ADM1 simulation", fontsize=13)
             plt.tight_layout()
             if show_figures:
                 plt.show()
             else:
                 plt.close(fig)
         except Exception as e:
-            print(f"Visualisation rapide ignorée : {e}")
+            print(f"Quick overview skipped: {e}")
 
 if __name__ == "__main__":
     main()

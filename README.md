@@ -1,9 +1,5 @@
 # ADM1 Reactor Simulation (Adapted from PyADM1)
 
-**Authors**
-- Margaux Bonal — <margaux.bonal@inrae.fr>
-- David Camilo Corrales — <David-Camilo.Corrales-Munoz@inrae.fr>
-
 **Documentation:** see [docs/](docs/) — including [docs/adm1_biology.md](docs/adm1_biology.md), an introduction to the biology of ADM1 written for computer scientists.
 
 ---
@@ -129,7 +125,7 @@ local paths or secrets in the future (e.g. a dataset directory), create a
 ## Running the Simulation
 
 1️⃣ **Pick a scenario** in `configs/Scenario.yaml` by setting `active_scenario:`
-(e.g. `BSM2_dynamic`, `BSM2_constant`, `thermophilic`, `batch_validation`, `test_lisier`).
+(e.g. `BSM2_dynamic`, `BSM2_constant`, `thermophilic`, `batch_validation`, `pig_slurry_test`).
 
 2️⃣ **Provide influent data** in `configs/Influent.yaml`:
 - `dynamic` mode reads a CSV time series (default: `configs/daily_averages.csv`)
@@ -168,7 +164,7 @@ Simulation Output (CSV)
 
 ```
 
-## 📘 Project brief – ADM1 Parameter Refactoring
+## 📘 How parameters are structured in YAML files
 
 <details> <summary>📖 Click to expand</summary> <br>
 
@@ -400,14 +396,6 @@ It includes:
 - ODE/DAE mode  
 
 👉 This separation distinguishes the biophysical model from its numerical resolution.
-
----
-
-## Conclusion
-
-This new organization transforms a monolithic structure into a modular and extensible architecture. It improves code readability, facilitates scenario management, and clearly separates model parameters, initial conditions, and numerical settings.
-
-This refactoring provides a strong foundation for future developments, including calibration, optimization, and integration with AI-based tools.
 
 ---
 
