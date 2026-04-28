@@ -1,5 +1,13 @@
 # ADM1 Reactor Simulation (Adapted from PyADM1)
 
+**Authors**
+- Margaux Bonal — <margaux.bonal@inrae.fr>
+- David Camilo Corrales — <David-Camilo.Corrales-Munoz@inrae.fr>
+
+**Documentation:** see [docs/](docs/) — including [docs/adm1_biology.md](docs/adm1_biology.md), an introduction to the biology of ADM1 written for computer scientists.
+
+---
+
 This project implements a simulation of an anaerobic digestion reactor based on the Anaerobic Digestion Model No.1 (ADM1).
 
 The code is adapted from the original PyADM1 implementation, a Python tool for modeling and simulating anaerobic digestion processes in biogas reactors.
@@ -26,6 +34,11 @@ ADM1/
 │
 ├── main.py                     # Simulation entry point
 ├── initial_states.py           # Initial state vector loader (38 ADM1 states)
+├── requirements.txt            # Python dependencies (pip install -r)
+│
+├── docs/                       # Extended documentation
+│   ├── README.md               # Index of the docs folder
+│   └── adm1_biology.md         # ADM1 biology explained for computer scientists
 │
 ├── configs/
 │   ├── adm1_parameters.yaml    # Intrinsic ADM1 kinetic / stoichiometric parameters
@@ -53,28 +66,65 @@ ADM1/
 ```
 
 
-## Requirements
+## Installation
 
-The simulator requires the following packages:
+Python 3.10+ is recommended.
 
-* NumPy
-* SciPy
-* Pandas
-* Matplotlib
-* PyYAML
-
-Install them using:
+### 1. Clone the repository
 
 ```bash
-pip install numpy scipy pandas matplotlib pyyaml
+git clone https://github.com/stamm-4m/model-adm1.git
+cd model-adm1
 ```
 
-### Core dependencies:
-* NumPy – numerical operations
-* SciPy – ODE solver (solve_ivp)
-* Pandas – data processing
-* Matplotlib – visualization
-* PyYAML – configuration loading
+### 2. Create and activate a virtual environment
+
+**Linux / macOS**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+**Windows (PowerShell)**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+**Windows (cmd.exe)**
+
+```bat
+python -m venv .venv
+.\.venv\Scripts\activate.bat
+```
+
+### 3. Install dependencies
+
+All required packages are pinned in [requirements.txt](requirements.txt):
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 4. (Optional) Environment variables
+
+The simulator is configured entirely through YAML files in [configs/](configs/);
+no environment variables are required out of the box. If you want to override
+local paths or secrets in the future (e.g. a dataset directory), create a
+`.env` file at the project root — it is already listed in `.gitignore`.
+
+### Core dependencies
+
+| Package    | Purpose                              |
+| ---------- | ------------------------------------ |
+| NumPy      | Numerical operations, state vectors  |
+| SciPy      | ODE solver (`solve_ivp`)             |
+| Pandas     | Influent CSV / results handling      |
+| Matplotlib | Diagnostic plots                     |
+| PyYAML     | Configuration loading                |
 
 ## Running the Simulation
 
@@ -122,7 +172,10 @@ Simulation Output (CSV)
 
 <details> <summary>📖 Click to expand</summary> <br>
 
-**Author:** Margaux BONAL  
+**Authors:**  
+- Margaux BONAL — <margaux.bonal@inrae.fr>  
+- David Camilo CORRALES — <David-Camilo.Corrales-Munoz@inrae.fr>  
+
 **Date:** April 2026  
 
 ---

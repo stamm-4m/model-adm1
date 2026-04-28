@@ -2,8 +2,9 @@
 ADM1 Reactor Simulation (Adapted from PyADM1)
 Main entry point — simulation runner
  
-Author: Margaux Bonal
-Email: margaux.bonal@inrae.fr
+Authors:
+    - Margaux Bonal           <margaux.bonal@inrae.fr>
+    - David Camilo Corrales   <David-Camilo.Corrales-Munoz@inrae.fr>
 Date: 04/2026
  
 Configuration files expected at:
