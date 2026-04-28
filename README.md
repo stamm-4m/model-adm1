@@ -14,6 +14,7 @@ for clearer configuration, modular code, and **plug-and-play hybrid models**
 | You want to … | Read |
 | --- | --- |
 | **Run the simulator** | [Quick start](#-quick-start) below |
+| **Understand how the YAML configs fit together** (rationale + per-file reference) | [docs/configuration.md](docs/configuration.md) |
 | **Understand the biology** (no biology background required) | [docs/adm1_biology.md](docs/adm1_biology.md) |
 | **Plug an ML model in** (sklearn / PyTorch / lookup / …) | [docs/hybrid.md](docs/hybrid.md) + [examples/](examples/) |
 | **Save & load a trained model** | [models/README.md](models/README.md) |
@@ -90,6 +91,7 @@ model-adm1/
 ├── docs/                                  # extended documentation
 │   ├── README.md
 │   ├── adm1_biology.md                    # ADM1 biology for computer scientists
+│   ├── configuration.md                   # YAML config files: rationale + per-file reference
 │   ├── hybrid.md                          # full hybrid-mode guide
 │   ├── images/                            # rendered diagrams (committed)
 │   └── scripts/render_diagrams.py         # regenerate the diagrams
