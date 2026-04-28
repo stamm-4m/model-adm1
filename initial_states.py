@@ -8,7 +8,7 @@ Date: 04/2026
 
 Charge le vecteur d'état initial depuis :
   configs/Initial_states.yaml  (jeu d'états nommés)
-  configs/Scenarios.yaml    (sélection du jeu actif)
+  configs/Scenario.yaml        (sélection du jeu actif)
 
 Le vecteur y0 est retourné dans l'ordre canonique des 38 variables ADM1.
 """
@@ -44,7 +44,7 @@ class InitialState:
     def __init__(
         self,
         states_file: str = "configs/Initial_states.yaml",
-        scenarios_file: str = "configs/Scenarios.yaml",
+        scenarios_file: str = "configs/Scenario.yaml",
     ):
         self.states_file = states_file
         self.scenarios_file = scenarios_file

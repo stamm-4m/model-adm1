@@ -8,7 +8,7 @@ Date: 04/2026
  
 Configuration files expected at:
     configs/
-    ├── adm1_parameters_2.yaml   ← intrinsic ADM1 kinetic/stoichiometric parameters
+    ├── adm1_parameters.yaml     ← intrinsic ADM1 kinetic/stoichiometric parameters
     ├── Initial_states.yaml      ← initial state vectors (one per named scenario)
     ├── Influent.yaml            ← influent definition (dynamic CSV or constant values)
     ├── Scenario.yaml            ← active scenario selector + parameter overrides
@@ -38,7 +38,7 @@ def main():
     # ============================================================
     # 0. Chemins de configuration
     # ============================================================
-    PARAMS_FILE = "configs/adm1_parameters_2.yaml"
+    PARAMS_FILE = "configs/adm1_parameters.yaml"
     STATES_FILE = "configs/Initial_states.yaml"
     INFLUENT_FILE = "configs/Influent.yaml"
     SCENARIO_FILE = "configs/Scenario.yaml"
@@ -199,20 +199,20 @@ def main():
     def get_influent_for_time(t: float) -> dict:
         """
         Return the influent state dict corresponding to simulation time t.
- 
-        For constant influents (single entry), this always returns index 0.
-        For dynamic influents, this floors t to the nearest day index and
-        clips to the last available time point to avoid out-of-bounds access.
- 
+
+        Uses np.searchsorted against the actual influent time axis to find the
+        active step (zero-order hold). This is robust to time axes that don't
+        start at 0 or aren't spaced exactly one day apart.
+
         Parameters
         ----------
         t : float  Current simulation time (d).
- 
+
         Returns
         -------
         dict : Influent concentrations keyed as 'S_su_in', 'X_xc_in', etc. (kgCOD/m³)
         """
-        step = int(np.floor(t))
+        step = int(np.searchsorted(time_data, t, side="right") - 1)
         step = max(0, min(step, len(influent_cache) - 1))
         return influent_cache[step]
 

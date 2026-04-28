@@ -25,20 +25,31 @@ Compared to the original PyADM1 code, this project introduces:
 ADM1/
 │
 ├── main.py                     # Simulation entry point
+├── initial_states.py           # Initial state vector loader (38 ADM1 states)
 │
 ├── configs/
-│   ├── adm1_parameters.yaml    # Model parameters
+│   ├── adm1_parameters.yaml    # Intrinsic ADM1 kinetic / stoichiometric parameters
+│   ├── Initial_states.yaml     # Named initial state vectors (BSM2, …)
+│   ├── Influent.yaml           # Influent definitions (dynamic CSV or constant)
+│   ├── Scenario.yaml           # Active scenario selector + parameter overrides
+│   ├── Simulation.yaml         # ODE solver settings, time horizon, output options
+│   ├── Calibration.yaml        # Calibration framework (free parameters, bounds)
 │   ├── digester_influent.csv   # Raw influent data
-│   └── daily_averages.csv      # Processed influent data
+│   └── daily_averages.csv      # Daily-averaged influent (BSM2 dynamic)
 │
-├── results/
-│   └── dynamic_out.csv         # Simulation output
+├── src/
+│   ├── reactor.py              # ADM1 reactor model (ODE system, mass balances)
+│   ├── parameters.py           # Parameter loader with scenario overrides
+│   ├── influent.py             # Influent interface (dynamic / constant modes)
+│   └── acid_base.py            # Acid-base equilibrium solver (pH, HCO3⁻, NH3)
 │
-└── src/
-    ├── reactor.py              # ADM1 reactor model
-    ├── parameters.py           # Parameter loader
-    ├── influent.py             # Influent interface
-    └── preprocessing_data.py   # Data preprocessing
+├── plots/
+│   ├── plot_biogas.py          # Biogas production diagnostics
+│   ├── plot_biomass.py         # Biomass population dynamics
+│   └── plot_pH_alkalinity.py   # pH and alkalinity diagnostics
+│
+└── results/
+    └── dynamic_out.csv         # Simulation output
 ```
 
 
@@ -66,29 +77,27 @@ pip install numpy scipy pandas matplotlib pyyaml
 * PyYAML – configuration loading
 
 ## Running the Simulation
-1️⃣ Configure model parameters
 
-```bash
-configs/adm1_parameters.yaml
-```
+1️⃣ **Pick a scenario** in `configs/Scenario.yaml` by setting `active_scenario:`
+(e.g. `BSM2_dynamic`, `BSM2_constant`, `thermophilic`, `batch_validation`, `test_lisier`).
 
-## 2️⃣  Provide influent data in:
+2️⃣ **Provide influent data** in `configs/Influent.yaml`:
+- `dynamic` mode reads a CSV time series (default: `configs/daily_averages.csv`)
+- `constant` mode uses fixed values defined directly in the YAML
 
-```bash
-configs/
-```
+3️⃣ **Tune solver and output** in `configs/Simulation.yaml` (method, tolerances,
+time horizon, output step). Reference parameters live in `configs/adm1_parameters.yaml`
+and can be overridden per scenario via `parameter_overrides:` in `Scenario.yaml`.
 
-## 3️⃣ Run the simulation
+4️⃣ **Run the simulation**:
+
 ```bash
 python main.py
 ```
 
-At the end of the simulation, the results will be written to:
-
-```bash
-results/dynamic_out.csv
-
-```
+Results are written to `results/dynamic_out.csv`, and diagnostic figures
+(biogas, biomass, pH/alkalinity) are saved to `results/figures/` when
+`save_figures: true` in `Simulation.yaml`.
 
 ## Simulation Workflow
 

@@ -51,7 +51,7 @@ class Influent:
     def __init__(
         self,
         influent_file: str = "configs/Influent.yaml",
-        scenarios_file: str = "configs/Scenarios.yaml",
+        scenarios_file: str = "configs/Scenario.yaml",
     ):
         self.influent_file = influent_file
         self.scenarios_file = scenarios_file

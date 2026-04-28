@@ -34,8 +34,8 @@ class ADM1Parameters:
 
     def __init__(
         self,
-        params_file: str = "configs/adm1_parameters_2.yaml",
-        scenarios_file: str = "configs/Scenarios.yaml",
+        params_file: str = "configs/adm1_parameters.yaml",
+        scenarios_file: str = "configs/Scenario.yaml",
     ):
         self.params_file = params_file
         self.scenarios_file = scenarios_file
