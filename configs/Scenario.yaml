@@ -16,6 +16,7 @@
 
 # ------ Active scenario ------
 # active_scenario: BSM2_dynamic
+# active_scenario: hybrid_demo     # see docs/hybrid.md and examples/
 active_scenario : thermophilic
 
 # ------ Scenario definitions ------
@@ -79,6 +80,29 @@ scenarios:
         value: 0.0
         units: "m^3.d^-1"
         description: "Zero flow — batch mode"
+
+  # --- Hybrid-mode demo (Tiers 1 + 2) ---
+  # Plugs the three example callables in examples/ into a BSM2 dynamic run.
+  # Set active_scenario: hybrid_demo above to try it. Remove or comment out
+  # any of the three sub-blocks to disable that hook independently.
+  hybrid_demo:
+    description: >
+      BSM2 dynamic with all three hybrid plug-points enabled (Tiers 1 + 2):
+      a temperature-aware Rho_11, a Hill-style I_nh3, and a small residual
+      correction on dissolved methane.
+    initial_states: BSM2
+    influent_mode: dynamic
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides: {}
+    hybrid:
+      enabled: true
+      rate_overrides:
+        Rho_11: "examples.hybrid_rate_example:acetoclastic_rate_T_aware"
+      inhibition_overrides:
+        I_nh3: "examples.hybrid_inhibition_example:hill_nh3_inhibition"
+      residual_correction: "examples.hybrid_residual_example:methane_bias_correction"
 
   # --- New scenario: pig-slurry test ---
   pig_slurry_test:

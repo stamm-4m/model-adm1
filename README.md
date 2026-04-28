@@ -1,6 +1,6 @@
 # ADM1 Reactor Simulation (Adapted from PyADM1)
 
-**Documentation:** see [docs/](docs/) — including [docs/adm1_biology.md](docs/adm1_biology.md), an introduction to the biology of ADM1 written for computer scientists.
+**Documentation:** see [docs/](docs/) — including [docs/adm1_biology.md](docs/adm1_biology.md), an introduction to the biology of ADM1 written for computer scientists, and [docs/hybrid.md](docs/hybrid.md), the guide to plugging ML models into ADM1.
 
 ---
 
@@ -34,7 +34,14 @@ ADM1/
 │
 ├── docs/                       # Extended documentation
 │   ├── README.md               # Index of the docs folder
-│   └── adm1_biology.md         # ADM1 biology explained for computer scientists
+│   ├── adm1_biology.md         # ADM1 biology explained for computer scientists
+│   └── hybrid.md               # How to plug ML models into ADM1 (Tiers 1 + 2)
+│
+├── examples/                   # Hybrid-mode example callables
+│   ├── README.md
+│   ├── hybrid_rate_example.py        # Tier 1 — replace a process rate
+│   ├── hybrid_inhibition_example.py  # Tier 1 — replace an inhibition factor
+│   └── hybrid_residual_example.py    # Tier 2 — residual correction on dy/dt
 │
 ├── configs/
 │   ├── adm1_parameters.yaml    # Intrinsic ADM1 kinetic / stoichiometric parameters
@@ -144,6 +151,26 @@ python main.py
 Results are written to `results/dynamic_out.csv`, and diagnostic figures
 (biogas, biomass, pH/alkalinity) are saved to `results/figures/` when
 `save_figures: true` in `Simulation.yaml`.
+
+## Hybrid Mode (ADM1 + your ML model)
+
+You can run the simulator either as **pure ADM1** (default) or as a
+**hybrid model** by adding a `hybrid:` block to your scenario in
+`configs/Scenario.yaml`. No code changes are required — point the YAML
+at any Python callable and it is wired into the ODE solver at startup.
+
+Three plug points are available, all optional:
+
+- **Rate override (Tier 1):** replace one of the 19 process rates `Rho_1 .. Rho_19`.
+- **Inhibition override (Tier 1):** replace one of the inhibition factors `I_5..I_12, I_nh3`.
+- **Residual correction (Tier 2):** add a UDE-style learned correction to `dy/dt`.
+
+To try it, set `active_scenario: hybrid_demo` in `configs/Scenario.yaml`
+and run `python main.py`. The startup banner will report which hooks are
+active.
+
+Full guide and callable signatures: [docs/hybrid.md](docs/hybrid.md).
+Worked examples: [examples/](examples/).
 
 ## Simulation Workflow
 

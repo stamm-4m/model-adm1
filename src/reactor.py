@@ -55,6 +55,12 @@ ALGEBRAIC_STATE_NAMES = [
 DYNAMIC_STATE_NAMES = [name for name in FULL_STATE_NAMES if name not in ALGEBRAIC_STATE_NAMES]
 DYNAMIC_STATE_INDICES = [FULL_STATE_NAMES.index(name) for name in DYNAMIC_STATE_NAMES]
 
+# Hooks that hybrid models may target.
+KNOWN_RATE_NAMES = {f"Rho_{i}" for i in range(1, 20)}
+KNOWN_INHIBITION_NAMES = {
+    "I_5", "I_6", "I_7", "I_8", "I_9", "I_10", "I_11", "I_12", "I_nh3",
+}
+
 
 class ADM1Reactor:
 
@@ -75,6 +81,19 @@ class ADM1Reactor:
 
         self._state_template = np.zeros(len(FULL_STATE_NAMES), dtype=float)
 
+        # ── Hybrid hooks (Tier 1 + Tier 2). Empty = pure classical ADM1. ──
+        # Tier 1 — replace a single process rate Rho_X.
+        #   Signature: rate_overrides[name](state: dict, inhib: dict, param) -> float
+        self.rate_overrides: dict = {}
+        # Tier 1 — replace a single inhibition factor I_X.
+        #   Signature: inhibition_overrides[name](state: dict, param) -> float
+        self.inhibition_overrides: dict = {}
+        # Tier 2 — additive UDE-style correction on dy/dt.
+        #   Signature: residual_correction(t: float, state: dict, param) -> dict | ndarray
+        #   - dict form: {state_name: dydt_delta}     (only listed states corrected)
+        #   - ndarray form: length-38 vector aligned with FULL_STATE_NAMES
+        self.residual_correction = None
+
     def ADM1_ODE(self, t, state_vector):
         input_is_reduced = len(state_vector) == len(DYNAMIC_STATE_NAMES)
         full_state_vector = (
@@ -94,7 +113,12 @@ class ADM1Reactor:
         rho = self.compute_biochemical_rates(state, inhib)
         gas = self.compute_gas_transfer(state)
 
-        full_derivatives = self.mass_balances(state, rho, gas)
+        full_derivatives = np.asarray(self.mass_balances(state, rho, gas), dtype=float)
+
+        # Apply Tier-2 residual correction on dy/dt (no-op if hook is None)
+        if self.residual_correction is not None:
+            full_derivatives = self._apply_residual_correction(t, state, full_derivatives)
+
         derivatives = (
             self.reduce_to_dynamic_state(full_derivatives)
             if input_is_reduced
@@ -179,6 +203,34 @@ class ADM1Reactor:
         full_state[DYNAMIC_STATE_INDICES] = state
         return full_state
 
+    def _apply_residual_correction(self, t, state, full_derivatives):
+        """
+        Add the Tier-2 residual correction to the classical derivative vector.
+
+        Accepts either:
+          - dict {state_name: dydt_delta}  (only listed states corrected)
+          - array-like of length 38         (aligned with FULL_STATE_NAMES)
+        """
+        delta = self.residual_correction(t, state, self.param)
+        if isinstance(delta, dict):
+            for name, dydt_delta in delta.items():
+                if name not in FULL_STATE_NAMES:
+                    raise KeyError(
+                        f"residual_correction returned unknown state '{name}'. "
+                        f"Expected one of FULL_STATE_NAMES."
+                    )
+                idx = FULL_STATE_NAMES.index(name)
+                full_derivatives[idx] += float(dydt_delta)
+            return full_derivatives
+
+        delta_arr = np.asarray(delta, dtype=float)
+        if delta_arr.shape != (len(FULL_STATE_NAMES),):
+            raise ValueError(
+                f"residual_correction returned array of shape {delta_arr.shape}, "
+                f"expected ({len(FULL_STATE_NAMES)},)."
+            )
+        return full_derivatives + delta_arr
+
     def _apply_acid_base_to_state_vector(self, state_vector, acid_base):
         full_state = self.expand_dynamic_state(state_vector)
         state = self.unpack_state(full_state)
@@ -236,7 +288,7 @@ class ADM1Reactor:
         I_11 = I_pH_ac * I_IN_lim * I_nh3
         I_12 = I_pH_h2 * I_IN_lim
 
-        return {
+        result = {
             "I_5": I_5,
             "I_6": I_6,
             "I_7": I_7,
@@ -247,6 +299,12 @@ class ADM1Reactor:
             "I_12": I_12,
             "I_nh3": I_nh3,
         }
+
+        # Apply Tier-1 inhibition overrides (no-op if dict is empty)
+        for name, fn in self.inhibition_overrides.items():
+            result[name] = float(fn(state, self.param))
+
+        return result
 
     def compute_biochemical_rates(self, state, inhib) -> dict:
         p = self.param
@@ -300,7 +358,7 @@ class ADM1Reactor:
         Rho_18 = p.k_dec_X_ac * X_ac
         Rho_19 = p.k_dec_X_h2 * X_h2
 
-        return {
+        result = {
             "Rho_1": Rho_1,
             "Rho_2": Rho_2,
             "Rho_3": Rho_3,
@@ -321,6 +379,12 @@ class ADM1Reactor:
             "Rho_18": Rho_18,
             "Rho_19": Rho_19,
         }
+
+        # Apply Tier-1 rate overrides (no-op if dict is empty)
+        for name, fn in self.rate_overrides.items():
+            result[name] = float(fn(state, inhib, self.param))
+
+        return result
 
     def compute_gas_transfer(self, state) -> dict:
         p = self.param

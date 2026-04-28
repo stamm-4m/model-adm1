@@ -28,6 +28,7 @@ from src.reactor import ADM1Reactor, FULL_STATE_NAMES
 from src.parameters import ADM1Parameters
 from initial_states import InitialState
 from src.influent import Influent
+from src.hybrid import apply_hybrid_config
 
 from src.acid_base import compute_acid_base_equilibrium, compute_total_cod
 
@@ -145,6 +146,27 @@ def main():
 
     # Instantiate the ADM1 reactor model (holds all ODE equations and process rates)
     reactor = ADM1Reactor(param, constants=None)
+
+    # Wire optional hybrid hooks from the active scenario (no-op if absent).
+    scenario_cfg_full = load_yaml_file(SCENARIO_FILE)
+    active_scenario_key = scenario_cfg_full.get("active_scenario")
+    hybrid_cfg = (
+        scenario_cfg_full.get("scenarios", {})
+        .get(active_scenario_key, {})
+        .get("hybrid", {})
+    )
+    hybrid_summary = apply_hybrid_config(reactor, hybrid_cfg)
+    if hybrid_summary["enabled"]:
+        print("\n" + "━" * 66)
+        print("  ADM1 — Hybrid mode ENABLED")
+        print("━" * 66)
+        if hybrid_summary["rate_overrides"]:
+            print(f"  Rate overrides       : {', '.join(hybrid_summary['rate_overrides'])}")
+        if hybrid_summary["inhibition_overrides"]:
+            print(f"  Inhibition overrides : {', '.join(hybrid_summary['inhibition_overrides'])}")
+        if hybrid_summary["residual_correction"]:
+            print(f"  Residual correction  : enabled")
+        print("━" * 66 + "\n")
 
     # Re-project the initial state onto the acid-base equilibrium so the run
     # starts with consistent pH / HCO3- / CO2 / NH3 / NH4+.
