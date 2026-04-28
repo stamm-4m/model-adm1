@@ -13,6 +13,12 @@ See the full guide in [`docs/hybrid.md`](../docs/hybrid.md).
 | [hybrid_rate_example.py](hybrid_rate_example.py) | 1 | `Rho_11` (acetoclastic methanogenesis) | classical Monod × Gaussian temperature factor — illustrates "physics × learned correction" |
 | [hybrid_inhibition_example.py](hybrid_inhibition_example.py) | 1 | `I_nh3` (free-ammonia inhibition) | Hill sigmoid with tunable exponent — illustrates a parametric replacement |
 | [hybrid_residual_example.py](hybrid_residual_example.py) | 2 | residual on `dy/dt` | constant CH₄ bias — illustrates UDE-style additive correction |
+| [hybrid_linear_regression_example.py](hybrid_linear_regression_example.py) | 1 | `Rho_2` (carbohydrate hydrolysis) | **real ML model**: linear regression fitted on synthetic data via `np.linalg.lstsq` — full *train offline → predict online* workflow in one file |
+
+For loading a saved model artefact through the simulator's plug-and-play
+hooks, see the **save recipes** in [`../models/README.md`](../models/README.md).
+The simulator is intentionally a loader-only target — train with whatever
+ML stack you already use, then drop in a `.spec.yaml` + artefact pair.
 
 There is also a no-op residual (`zero_residual`) you can use to sanity-check
 the wiring without changing dynamics.

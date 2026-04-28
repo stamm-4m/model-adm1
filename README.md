@@ -37,11 +37,17 @@ ADM1/
 │   ├── adm1_biology.md         # ADM1 biology explained for computer scientists
 │   └── hybrid.md               # How to plug ML models into ADM1 (Tiers 1 + 2)
 │
-├── examples/                   # Hybrid-mode example callables
+├── examples/                          # Hybrid-mode example callables
 │   ├── README.md
-│   ├── hybrid_rate_example.py        # Tier 1 — replace a process rate
-│   ├── hybrid_inhibition_example.py  # Tier 1 — replace an inhibition factor
-│   └── hybrid_residual_example.py    # Tier 2 — residual correction on dy/dt
+│   ├── hybrid_rate_example.py         # Tier 1 — replace a process rate
+│   ├── hybrid_inhibition_example.py   # Tier 1 — replace an inhibition factor
+│   ├── hybrid_residual_example.py     # Tier 2 — residual correction on dy/dt
+│   └── hybrid_linear_regression_example.py  # real ML — linear regression for Rho_2
+│
+├── models/                     # Saved hybrid model artefacts (HybridSpec pairs)
+│   ├── README.md               # save recipes: linear_lstsq, sklearn, ...
+│   ├── rho2.spec.yaml          # spec sidecar
+│   └── rho2.npz                # model artefact (linear-regression coefficients)
 │
 ├── configs/
 │   ├── adm1_parameters.yaml    # Intrinsic ADM1 kinetic / stoichiometric parameters

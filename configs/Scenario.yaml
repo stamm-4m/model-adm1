@@ -16,8 +16,9 @@
 
 # ------ Active scenario ------
 # active_scenario: BSM2_dynamic
+# active_scenario: thermophilic
 # active_scenario: hybrid_demo     # see docs/hybrid.md and examples/
-active_scenario : thermophilic
+active_scenario : hybrid_demo
 
 # ------ Scenario definitions ------
 scenarios:
@@ -103,6 +104,46 @@ scenarios:
       inhibition_overrides:
         I_nh3: "examples.hybrid_inhibition_example:hill_nh3_inhibition"
       residual_correction: "examples.hybrid_residual_example:methane_bias_correction"
+
+  # --- Hybrid LR demo: replace Rho_2 with a real ML model ---
+  # Trains a tiny linear regression at module import time on synthetic data
+  # and uses it in place of the classical first-order carbohydrate
+  # hydrolysis. Same plug-in pattern works for any sklearn / PyTorch / ONNX
+  # model — just swap the file the override points at.
+  hybrid_lr_demo:
+    description: >
+      BSM2 dynamic with the carbohydrate hydrolysis rate Rho_2 replaced by
+      a linear-regression model fitted from synthetic data
+      (np.linalg.lstsq, no extra dependencies).
+    initial_states: BSM2
+    influent_mode: dynamic
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides: {}
+    hybrid:
+      enabled: true
+      rate_overrides:
+        Rho_2: "examples.hybrid_linear_regression_example:carbohydrate_hydrolysis_lr"
+
+  # --- Hybrid LR demo via HybridSpec sidecar (Stage A) ---
+  # Same model as hybrid_lr_demo, but loaded from a saved artefact instead
+  # of via a Python module. Run `python -m examples.save_rho2_spec` once
+  # to regenerate models/rho2.spec.yaml and models/rho2.npz.
+  hybrid_lr_spec_demo:
+    description: >
+      BSM2 dynamic with Rho_2 replaced by a saved linear-regression model
+      loaded via a HybridSpec sidecar (models/rho2.spec.yaml).
+    initial_states: BSM2
+    influent_mode: dynamic
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides: {}
+    hybrid:
+      enabled: true
+      rate_overrides:
+        Rho_2: "models/rho2.spec.yaml"
 
   # --- New scenario: pig-slurry test ---
   pig_slurry_test:

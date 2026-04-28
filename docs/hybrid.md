@@ -34,8 +34,15 @@ CSV outputs, diagnostics) is unchanged.
 
 ## Quick start
 
-A scenario named `hybrid_demo` is provided and uses the three example
-callables in [`../examples/`](../examples/).
+Two demo scenarios are provided out of the box:
+
+- `hybrid_demo` — uses three hand-written example callables (rate, inhibition,
+  residual) so you can see all plug points active at once.
+- `hybrid_lr_demo` — uses a **real linear-regression model** (fitted on
+  synthetic data with `np.linalg.lstsq` at module import) to replace
+  `Rho_2` (carbohydrate hydrolysis). Closest to a real ML workflow.
+
+Both run with the example callables in [`../examples/`](../examples/).
 
 ```bash
 # In configs/Scenario.yaml
@@ -93,25 +100,37 @@ scenarios:
       residual_correction: "examples.hybrid_residual_example:methane_bias_correction"
 ```
 
-### Callable spec format
+### Spec value forms
 
-Every entry is a string `"<location>:<function_name>"`. Two location
-forms are supported:
+Each entry under `rate_overrides:` / `inhibition_overrides:` /
+`residual_correction:` is a string. The simulator detects the form
+automatically and dispatches to the right loader.
 
-- **Dotted import path** when your callable lives in a package on
-  `PYTHONPATH` (the project root is on `PYTHONPATH` by default):
+**Form 1 — raw callable** `"<location>:<function_name>"`:
+
+- Dotted import path when your callable lives in a package on `PYTHONPATH`
+  (the project root is on `PYTHONPATH` by default):
 
   ```yaml
   Rho_11: "examples.hybrid_rate_example:acetoclastic_rate_T_aware"
   ```
 
-- **File path** when you have a one-off script and don't want to package
-  it:
+- File path when you have a one-off script and don't want to package it:
 
   ```yaml
   Rho_11: "./my_models/acetoclastic.py:predict"
   Rho_12: "/abs/path/to/model.py:predict"
   ```
+
+**Form 2 — HybridSpec sidecar** `"path/to/<name>.spec.yaml"`:
+
+```yaml
+Rho_2: "models/rho2.spec.yaml"
+```
+
+This loads a saved, trained model artefact (no Python changes). The
+sidecar describes what the artefact is and how to feed it; see the
+**HybridSpec sidecars** section below.
 
 ---
 
@@ -171,6 +190,111 @@ See [examples/hybrid_residual_example.py](../examples/hybrid_residual_example.py
 
 ---
 
+## HybridSpec sidecars (saved model artefacts)
+
+A `HybridSpec` is a tiny YAML sidecar that describes one trained model:
+what hook it plugs into, what features it consumes, what backend it uses,
+and where the artefact lives. It lets you ship a trained model as
+**two version-controllable files** (a `.spec.yaml` + an artefact) and
+swap models in YAML without touching Python.
+
+### Schema
+
+```yaml
+target: Rho_2                       # hook (Rho_X | I_X | residual:<state>)
+inputs: [X_ch, T_op, pH]            # feature names, in order
+model_type: linear_lstsq            # backend key
+model_path: rho2.npz                # artefact path (relative to spec or absolute)
+metadata:                           # free-form, for traceability
+  created_at: "2026-04-28T..."
+  training_size: 2000
+  notes: "..."
+```
+
+### How features are resolved
+
+For each name in `inputs`, the loader extracts the value from the runtime
+context:
+
+| Name | Looked up in |
+| --- | --- |
+| any of the 38 `FULL_STATE_NAMES` (`S_su`, `X_ac`, ...) | `state[name]` |
+| any of `I_5..I_12, I_nh3` | `inhib[name]` (rate overrides only) |
+| `T_op` | `param.T_op` |
+| `pH` | computed as `−log10(state["S_H_ion"])` |
+| any other `ADM1Parameters` attribute | `getattr(param, name)` |
+
+The order in `inputs` is the order the features are passed to the model,
+so the saved coefficients/weights MUST match.
+
+### Built-in backends
+
+| `model_type` | Artefact format | Dependencies |
+| --- | --- | --- |
+| `linear_lstsq` | `.npz` with key `coeffs` (1-D: `[b0, b1, ..., b_n]`) | none — uses NumPy only |
+| `sklearn` | `.joblib` (any sklearn estimator with `.predict([[…]])`) | `joblib` (or `scikit-learn`) |
+
+Adding a new backend is a few lines in [`src/hybrid.py`](../src/hybrid.py):
+register a `_predict_X` function in `_BACKEND_PREDICT` and a load branch
+in `_load_artefact`.
+
+### Wiring a saved model in
+
+```yaml
+# configs/Scenario.yaml
+hybrid:
+  enabled: true
+  rate_overrides:
+    Rho_2: "models/my_model.spec.yaml"
+```
+
+The two demo scenarios `hybrid_lr_demo` (raw callable) and
+`hybrid_lr_spec_demo` (sidecar) wrap the same trained linear regression —
+useful for an A/B comparison.
+
+---
+
+## Integration contract
+
+The simulator is an **integration target**, not an ML framework. It owns
+the spec format and the loader. **It does not own training.** You train
+your model with whatever stack you already use; you produce a
+`.spec.yaml` + artefact pair following the contract below; the simulator
+does the rest.
+
+### Required spec fields
+
+| Field | Purpose |
+| --- | --- |
+| `target` | Which hook to plug into. Exactly one of: `Rho_X` (X in 1..19), an inhibition name in `{I_5..I_12, I_nh3}`, or `residual:<state>` where `<state>` is an ADM1 state name. |
+| `inputs` | Ordered list of feature names. Each is resolved at inference from `state`, `inhib`, `param` (see *How features are resolved* above). The order is the order passed to your model — saved coefficients/weights must match. |
+| `model_type` | Backend key. Built-in: `linear_lstsq`, `sklearn`. Adding new ones is a few lines in `src/hybrid.py`. |
+| `model_path` | Path to the artefact file. Relative paths are resolved against the spec file's directory; absolute paths are used as-is. |
+
+### Recommended `metadata` fields
+
+`metadata` is intentionally schema-less — anything you put there is
+preserved. The loader emits a `UserWarning` if any of `created_at` or
+`training_data` is missing, since a model without provenance is hard to
+audit later.
+
+| Key | Why it matters |
+| --- | --- |
+| `created_at` | When was this trained? ISO-8601 timestamp recommended. |
+| `training_data` | Where the data came from — path, dataset name, or content hash. |
+| `training_size` | Number of training samples. |
+| `metric_*` | Validation metrics on a held-out set (e.g. `metric_mae`, `metric_r2`). |
+| `adm1_version` | Git SHA of this repo at training time, for reproducible refits. |
+| `notes` | Free-form. Anything a colleague would want to know. |
+
+### Save recipes
+
+The full cookbook (with copy-paste recipes for `linear_lstsq` and
+`sklearn`, plus how to write the YAML by hand) lives next to the
+artefacts: see [`../models/README.md`](../models/README.md).
+
+---
+
 ## What you can plug in
 
 Any Python callable that matches the signature works. Common backends:
@@ -186,7 +310,13 @@ Any Python callable that matches the signature works. Common backends:
 Heavy initialisation (loading a checkpoint, building a session) should
 happen at module import time, **not** inside the called function — the
 function runs at every solver step (potentially thousands of times per
-simulated day).
+simulated day). The
+[hybrid_linear_regression_example.py](../examples/hybrid_linear_regression_example.py)
+shows the full *train at import → infer in the loop* pattern with a
+linear regression fitted by `np.linalg.lstsq`. The same skeleton works
+unchanged for sklearn (replace `np.linalg.lstsq` with `model.fit`) or
+PyTorch (load `state_dict` once, call `model(x).item()` inside the
+override).
 
 ---
 
