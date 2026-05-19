@@ -17,6 +17,7 @@ Configuration files expected at:
 """
 
 import os
+import sys
 import time
 import yaml
 import numpy as np
@@ -29,12 +30,25 @@ from src.parameters import ADM1Parameters
 from initial_states import InitialState
 from src.influent import Influent
 from src.hybrid import apply_hybrid_config
+from src.registry import load_registry, format_registry, format_hooks
 
 from src.acid_base import compute_acid_base_equilibrium, compute_total_cod
 
 from plots.plot_biogas import plot_biogas
 from plots.plot_biomass import plot_biomass
 from plots.plot_pH_alkalinity import plot_pH_alkalinity
+
+def _handle_introspection_flags(argv) -> bool:
+    """Handle --list-models / --list-hooks. Returns True if a flag was handled
+    (caller should exit). Kept separate so main() stays focused on simulation."""
+    if "--list-hooks" in argv:
+        print(format_hooks())
+        return True
+    if "--list-models" in argv:
+        print(format_registry(load_registry()))
+        return True
+    return False
+
 
 def main():
     # ============================================================
@@ -148,6 +162,7 @@ def main():
     reactor = ADM1Reactor(param, constants=None)
 
     # Wire optional hybrid hooks from the active scenario (no-op if absent).
+    # The hybrid registry is loaded from models/*.yaml — see src/registry.py.
     scenario_cfg_full = load_yaml_file(SCENARIO_FILE)
     active_scenario_key = scenario_cfg_full.get("active_scenario")
     hybrid_cfg = (
@@ -155,7 +170,8 @@ def main():
         .get(active_scenario_key, {})
         .get("hybrid", {})
     )
-    hybrid_summary = apply_hybrid_config(reactor, hybrid_cfg)
+    registry = load_registry()
+    hybrid_summary = apply_hybrid_config(reactor, hybrid_cfg, registry)
     if hybrid_summary["enabled"]:
         print("\n" + "━" * 66)
         print("  ADM1 — Hybrid mode ENABLED")
@@ -165,7 +181,7 @@ def main():
         if hybrid_summary["inhibition_overrides"]:
             print(f"  Inhibition overrides : {', '.join(hybrid_summary['inhibition_overrides'])}")
         if hybrid_summary["residual_correction"]:
-            print(f"  Residual correction  : enabled")
+            print(f"  Residual correction  : {', '.join(hybrid_summary['residual_correction'])}")
         print("━" * 66 + "\n")
 
     # Re-project the initial state onto the acid-base equilibrium so the run
@@ -527,4 +543,6 @@ def main():
             print(f"Quick overview skipped: {e}")
 
 if __name__ == "__main__":
+    if _handle_introspection_flags(sys.argv[1:]):
+        sys.exit(0)
     main()

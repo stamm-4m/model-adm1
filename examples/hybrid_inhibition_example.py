@@ -6,9 +6,10 @@ The classical ADM1 form is the simple non-competitive
 This example swaps it for a Hill-style sigmoid with a tunable exponent n,
 which gives a sharper transition around K_I.
 
+Registered as:
+  models/nh3_hill.yaml  (backend: callable, target: I_nh3)
 Wired by:
-  configs/Scenario.yaml > scenarios.<your_scenario>.hybrid.inhibition_overrides:
-      I_nh3: "examples.hybrid_inhibition_example:hill_nh3_inhibition"
+  configs/Scenario.yaml > scenarios.<your_scenario>.hybrid.use: [nh3_hill]
 
 Required signature
 ------------------

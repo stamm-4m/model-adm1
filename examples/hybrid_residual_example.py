@@ -10,9 +10,10 @@ dy/dt vector. Use it to encode a small learned correction that captures
 unmodelled effects (e.g. a feedstock-specific bias, a temperature drift,
 or a sensor-bias compensation).
 
+Registered as:
+  models/methane_bias.yaml  (backend: callable, target: residual:S_ch4)
 Wired by:
-  configs/Scenario.yaml > scenarios.<your_scenario>.hybrid.residual_correction:
-      "examples.hybrid_residual_example:methane_bias_correction"
+  configs/Scenario.yaml > scenarios.<your_scenario>.hybrid.use: [methane_bias]
 
 Required signature
 ------------------

@@ -1,24 +1,7 @@
-# ADM1 Reactor Simulation
+# ADM1 — Anaerobic Digestion Model No. 1
 
-A Python implementation of the **Anaerobic Digestion Model No. 1** (ADM1).
-Adapted from [PyADM1](https://github.com/CaptainFerMag/PyADM1), restructured
-for clearer configuration, modular code, and **plug-and-play hybrid models**
-(classical ADM1 + your ML, no code changes required).
-
-![Architecture](docs/images/architecture.png)
-
----
-
-## 📖 Where to start
-
-| You want to … | Read |
-| --- | --- |
-| **Run the simulator** | [Quick start](#-quick-start) below |
-| **Understand how the YAML configs fit together** (rationale + per-file reference) | [docs/configuration.md](docs/configuration.md) |
-| **Understand the biology** (no biology background required) | [docs/adm1_biology.md](docs/adm1_biology.md) |
-| **Plug an ML model in** (sklearn / PyTorch / lookup / …) | [docs/hybrid.md](docs/hybrid.md) + [examples/](examples/) |
-| **Save & load a trained model** | [models/README.md](models/README.md) |
-| **Browse the project structure** | [§ Project structure](#-project-structure) |
+A Python implementation of **ADM1**, with first-class hooks for plugging
+ML models in. Adapted from [PyADM1](https://github.com/CaptainFerMag/PyADM1).
 
 **Authors**
 - Margaux Bonal — <margaux.bonal@inrae.fr>
@@ -26,204 +9,158 @@ for clearer configuration, modular code, and **plug-and-play hybrid models**
 
 ---
 
-## 🚀 Quick start
+## Anaerobic digestion in 30 seconds (for ML/CS readers)
+
+A reactor full of microbes turns organic waste into **biogas** (methane).
+ADM1 is the standard mathematical model of that reactor — a system of
+**38 coupled ODEs** describing concentrations of substrates, microbial
+populations, dissolved gases, and ions.
+
+```mermaid
+flowchart LR
+    feed["<b>Substrate</b><br/>wastewater · manure ·<br/>food waste"]
+    bio[("<b>Anaerobic<br/>digester</b><br/>CSTR")]
+    biogas["<b>Biogas</b><br/>CH₄ + CO₂"]
+    digestate["<b>Digestate</b><br/>(liquid effluent)"]
+    feed --> bio
+    bio --> biogas
+    bio --> digestate
+
+    classDef io fill:#eef6fb,stroke:#1a6e9e,color:#0b3a5b
+    classDef tank fill:#e6f7f2,stroke:#117a65,color:#0b5345
+    class feed,biogas,digestate io
+    class bio tank
+```
+
+Inside the reactor, organic matter flows through four biochemical stages
+in series, each performed by a different group of microbes:
+
+```mermaid
+flowchart LR
+    s[Polymers] --> h[Hydrolysis] --> a[Acidogenesis] --> ac[Acetogenesis] --> m[Methanogenesis] --> ch4[CH₄ + CO₂]
+    classDef stage fill:#fff7e6,stroke:#cc8800,color:#663300
+    class h,a,ac,m stage
+```
+
+Each stage's rate is **Monod kinetics** gated by inhibition factors (pH,
+NH₃, H₂). The full math + CS-friendly walkthrough is in
+[docs/adm1_biology.md](docs/adm1_biology.md).
+
+---
+
+## What this simulator does
+
+```mermaid
+flowchart LR
+    cfg[configs/*.yaml<br/>scenario · parameters ·<br/>initial states · influent] --> sim
+    inf[CSV influent<br/>time series] --> sim[ADM1 ODE<br/>BDF solver]
+    sim --> csv[results/dynamic_out.csv<br/>full 38-state trajectory]
+    sim --> plots[plots: biogas ·<br/>biomass · pH/alkalinity]
+
+    classDef io fill:#eef6fb,stroke:#1a6e9e,color:#0b3a5b
+    classDef core fill:#e6f7f2,stroke:#117a65,color:#0b5345
+    class cfg,inf,csv,plots io
+    class sim core
+```
+
+Stack: Python ≥ 3.10, NumPy, SciPy, Pandas, Matplotlib, PyYAML.
+
+---
+
+## Quick start
 
 ```bash
 git clone https://github.com/stamm-4m/model-adm1.git
 cd model-adm1
-python -m venv .venv && source .venv/bin/activate     # or .venv\Scripts\activate on Windows
+python -m venv .venv && .venv\Scripts\activate     # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 python main.py
 ```
 
-Default scenario is `BSM2_dynamic` — a reference mesophilic run. Pick a
-different one by changing `active_scenario:` at the top of
-[`configs/Scenario.yaml`](configs/Scenario.yaml).
-
-Outputs:
-- `results/dynamic_out.csv` — full state trajectory
-- `results/figures/biogas.png`, `biomass.png`, `pH_alkalinity.png` — diagnostic plots
+Default scenario is `BSM2_dynamic` (mesophilic reference run). Pick a
+different one in `configs/Scenario.yaml`. Outputs land in `results/`.
 
 ---
 
-## 📁 Project structure
+## Hybrid mode — drop in your ML model
+
+Each hybrid component is a YAML file under `models/`. The directory **is**
+the registry. Scenarios reference models by name.
+
+```mermaid
+flowchart LR
+    yaml["<b>models/foo.yaml</b><br/>target / backend /<br/>artefact / inputs"]
+    art[("artefact<br/>(.npz · .joblib ·<br/>Python fn)")]
+    reg{{src/registry.py<br/>load_registry}}
+    sc["<b>Scenario.yaml</b><br/>hybrid.use: [foo]"]
+    rx[("ADM1 reactor<br/>foo replaces<br/>target hook")]
+    yaml --> reg
+    art -.-> reg
+    reg --> sc
+    sc --> rx
+
+    classDef yaml fill:#fff4e6,stroke:#cc6600,color:#663300
+    classDef code fill:#e6f7f2,stroke:#117a65,color:#0b5345
+    class yaml,sc yaml
+    class reg,rx code
+```
+
+Three plug points, all optional:
+
+| Tier | Target syntax       | Replaces                                    |
+| ---- | ------------------- | ------------------------------------------- |
+| 1    | `Rho_1 .. Rho_19`   | one of the 19 process rates                 |
+| 1    | `I_5..I_12, I_nh3`  | one of the inhibition factors               |
+| 2    | `residual:<state>`  | UDE-style additive correction on `dy/dt`    |
+
+Three built-in backends: `callable` (any Python function), `linear_lstsq`
+(NumPy `.npz`), `sklearn` (joblib).
+
+```bash
+python main.py --list-models       # registered models
+python main.py --list-hooks        # available plug points
+```
+
+Full guide: [docs/hybrid.md](docs/hybrid.md). Recipes for each backend:
+[models/README.md](models/README.md). Worked examples:
+[examples/](examples/).
+
+---
+
+## Project structure
 
 ```
 model-adm1/
-├── main.py                                # entry point
-├── initial_states.py                      # initial state vector (38 ADM1 states)
-├── requirements.txt
-│
-├── configs/                               # all configuration is YAML
-│   ├── adm1_parameters.yaml               # intrinsic ADM1 kinetic / stoichiometric parameters
-│   ├── Initial_states.yaml                # named initial state sets (BSM2, ...)
-│   ├── Influent.yaml                      # influent definitions (CSV time series or constant)
-│   ├── Scenario.yaml                      # active-scenario selector + per-scenario overrides
-│   ├── Simulation.yaml                    # ODE solver settings, time horizon, output
-│   ├── Calibration.yaml                   # calibration framework (free parameters, bounds)
-│   ├── digester_influent.csv              # raw influent data
-│   └── daily_averages.csv                 # daily-averaged BSM2 dynamic influent
-│
+├── main.py                      # entry point
+├── initial_states.py            # 38-state initial vector
+├── configs/                     # YAML configuration (one file per concern)
 ├── src/
-│   ├── reactor.py                         # ADM1 ODE system, mass balances
-│   ├── parameters.py                      # parameter loader (with scenario overrides)
-│   ├── influent.py                        # influent interface
-│   ├── acid_base.py                       # acid-base equilibrium solver
-│   └── hybrid.py                          # hybrid hooks + HybridSpec loader
-│
-├── plots/                                 # diagnostic plotting
-│   ├── plot_biogas.py
-│   ├── plot_biomass.py
-│   └── plot_pH_alkalinity.py
-│
-├── examples/                              # plug-in examples for hybrid mode
-│   ├── README.md
-│   ├── hybrid_rate_example.py             # Tier 1 — replace a process rate
-│   ├── hybrid_inhibition_example.py       # Tier 1 — replace an inhibition factor
-│   ├── hybrid_residual_example.py         # Tier 2 — residual on dy/dt
-│   └── hybrid_linear_regression_example.py  # real ML — linear regression for Rho_2
-│
-├── models/                                # trained hybrid model artefacts
-│   ├── README.md                          # save recipes (linear_lstsq, sklearn, ...)
-│   ├── rho2.spec.yaml                     # HybridSpec sidecar (declarative)
-│   └── rho2.npz                           # model artefact (LR coefficients)
-│
-├── docs/                                  # extended documentation
-│   ├── README.md
-│   ├── adm1_biology.md                    # ADM1 biology for computer scientists
-│   ├── configuration.md                   # YAML config files: rationale + per-file reference
-│   ├── hybrid.md                          # full hybrid-mode guide
-│   ├── images/                            # rendered diagrams (committed)
-│   └── scripts/render_diagrams.py         # regenerate the diagrams
-│
-└── results/                               # outputs
-    └── dynamic_out.csv
+│   ├── reactor.py               # ADM1 ODEs, mass balances, 19 process rates
+│   ├── parameters.py            # parameter loader + scenario overrides
+│   ├── influent.py              # influent interface
+│   ├── acid_base.py             # DAE: pH, HCO₃⁻, NH₃ equilibrium
+│   ├── hybrid.py                # registry → reactor wiring
+│   └── registry.py              # models/*.yaml loader + --list-* commands
+├── models/                      # hybrid-model registry (one YAML per model)
+├── examples/                    # four hybrid examples (rate, inhibition, residual, LR)
+├── plots/                       # diagnostic plotting
+└── docs/                        # extended docs (biology, configuration, hybrid)
 ```
 
 ---
 
-## 🛠 Installation
+## Where to go next
 
-Python 3.10 or newer is recommended.
-
-### 1. Clone
-
-```bash
-git clone https://github.com/stamm-4m/model-adm1.git
-cd model-adm1
-```
-
-### 2. Create and activate a virtual environment
-
-| Platform | Commands |
-| --- | --- |
-| **Linux / macOS** | `python3 -m venv .venv && source .venv/bin/activate` |
-| **Windows (PowerShell)** | `python -m venv .venv` then `.\.venv\Scripts\Activate.ps1` |
-| **Windows (cmd.exe)** | `python -m venv .venv` then `.\.venv\Scripts\activate.bat` |
-
-### 3. Install dependencies
-
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-| Package    | Purpose                              |
-| ---------- | ------------------------------------ |
-| NumPy      | numerical operations, state vectors  |
-| SciPy      | ODE solver (`solve_ivp`)             |
-| Pandas     | influent CSV / results handling      |
-| Matplotlib | diagnostic plots                     |
-| PyYAML     | configuration loading                |
-
-The simulator is configured entirely through YAML files in [`configs/`](configs/);
-no environment variables are required.
+| You want to …                                     | Read |
+| ------------------------------------------------- | ---- |
+| Understand the biology (CS framing)               | [docs/adm1_biology.md](docs/adm1_biology.md) |
+| Understand the YAML configuration                 | [docs/configuration.md](docs/configuration.md) |
+| Plug in your ML model                             | [docs/hybrid.md](docs/hybrid.md) |
+| Save / load a trained model                       | [models/README.md](models/README.md) |
+| See worked plug-in examples                       | [examples/README.md](examples/README.md) |
 
 ---
 
-## ▶️ Running the simulation
-
-1. **Pick a scenario** in [`configs/Scenario.yaml`](configs/Scenario.yaml) by setting `active_scenario:`. Provided scenarios:
-
-   | Scenario | What it does |
-   | --- | --- |
-   | `BSM2_dynamic` | Reference BSM2 mesophilic run with daily dynamic influent |
-   | `BSM2_constant` | Same, but with a constant-value influent |
-   | `thermophilic` | 55 °C operation with higher NH₃ inhibition constant |
-   | `batch_validation` | Batch mode (zero feed flow) — useful for validating kinetics |
-   | `hybrid_demo` | Tier 1 + 2 hybrid hooks via raw Python callables (see [docs/hybrid.md](docs/hybrid.md)) |
-   | `hybrid_lr_demo` | A real linear-regression model replaces `Rho_2`, loaded from `examples/` |
-   | `hybrid_lr_spec_demo` | Same model loaded via a `HybridSpec` sidecar in `models/` |
-   | `pig_slurry_test` | Pig-slurry feedstock under mesophilic conditions |
-
-2. **Provide influent data** in [`configs/Influent.yaml`](configs/Influent.yaml):
-   - `dynamic` — CSV time series (default: `configs/daily_averages.csv`)
-   - `constant` — fixed values defined directly in the YAML
-
-3. **Tune the solver and outputs** in [`configs/Simulation.yaml`](configs/Simulation.yaml).
-   Reference parameters live in [`configs/adm1_parameters.yaml`](configs/adm1_parameters.yaml)
-   and can be overridden per scenario via `parameter_overrides:` in `Scenario.yaml`.
-
-4. **Run**:
-
-   ```bash
-   python main.py
-   ```
-
-Results are written to `results/dynamic_out.csv`. Diagnostic figures
-(biogas, biomass, pH/alkalinity) are saved to `results/figures/` when
-`save_figures: true` in `Simulation.yaml`.
-
----
-
-## 🤖 Hybrid mode — ADM1 + your ML model
-
-You can run the simulator either as **pure ADM1** (default) or as a
-**hybrid model** by adding a `hybrid:` block to your scenario in
-`configs/Scenario.yaml`. **No code changes are required.**
-
-![Hybrid plug points](docs/images/hybrid_plug_points.png)
-
-Three plug points are available, all optional:
-
-| Plug point | Tier | What you can replace |
-| --- | --- | --- |
-| **Inhibition override** | 1 | one of `I_5..I_12, I_nh3` |
-| **Rate override** | 1 | one of `Rho_1..Rho_19` (the 19 process rates) |
-| **Residual correction** | 2 | additive learned correction on `dy/dt` for any state |
-
-Each hook is a Python callable. The simulator loads it at startup from a YAML reference, in either of two forms:
-
-- **Raw callable** — point at any function: `"my_pkg.my_module:my_function"` or `"./path/to/file.py:my_function"`.
-- **HybridSpec sidecar** — point at a saved trained model: `"models/my_rho.spec.yaml"` (the simulator loads the artefact for you).
-
-To try it, set `active_scenario: hybrid_demo` (or one of the `hybrid_lr_*`
-scenarios) in `configs/Scenario.yaml` and run `python main.py`. The
-startup banner will report which hooks were wired in.
-
-**Reading order**:
-1. [docs/hybrid.md](docs/hybrid.md) — full guide: signatures, schema, integration contract.
-2. [examples/](examples/) — four worked examples covering all three plug points.
-3. [models/README.md](models/README.md) — save recipes for `linear_lstsq`, `sklearn`, and how to add a new backend.
-
----
-
-## 🆚 Compared to the original PyADM1
-
-This adaptation introduces:
-
-- Modular project structure (separate concerns: model, parameters, influent, scenarios).
-- YAML-based configuration (no more hand-editing parameter dicts).
-- CSV-based influent preprocessing.
-- Per-scenario overrides for temperature, kinetics, and operating conditions.
-- **Plug-and-play hybrid hooks** (rate / inhibition / residual) — see above.
-- Three diagnostic plots tuned for AD operators (biogas, biomass populations, pH & VFA/alk stability).
-
-Three internal bug fixes vs the original PyADM1 are documented in the
-[`src/reactor.py`](src/reactor.py) module header.
-
----
-
-## 📜 License
+## License
 
 [Apache 2.0](LICENSE).

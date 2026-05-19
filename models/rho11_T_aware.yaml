@@ -1,0 +1,7 @@
+description: >
+  Temperature-aware acetoclastic methanogenesis rate (Rho_11): classical Monod
+  multiplied by a Gaussian temperature factor centred at the mesophilic optimum.
+  Hand-coded — illustrates the "physics × correction" pattern.
+target: Rho_11
+backend: callable
+artefact: examples/hybrid_rate_example.py:acetoclastic_rate_T_aware

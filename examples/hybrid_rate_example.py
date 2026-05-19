@@ -6,9 +6,10 @@ function is read from the YAML config at startup time and called in place
 of the classical Monod expression at every solver step. In a real hybrid
 project, replace the body with a call to a sklearn / PyTorch / ONNX model.
 
+Registered as:
+  models/rho11_T_aware.yaml  (backend: callable, target: Rho_11)
 Wired by:
-  configs/Scenario.yaml > scenarios.<your_scenario>.hybrid.rate_overrides:
-      Rho_11: "examples.hybrid_rate_example:acetoclastic_rate_T_aware"
+  configs/Scenario.yaml > scenarios.<your_scenario>.hybrid.use: [rho11_T_aware]
 
 Required signature
 ------------------

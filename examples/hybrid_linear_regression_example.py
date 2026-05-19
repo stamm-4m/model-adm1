@@ -26,9 +26,10 @@ The full hybrid workflow you would follow with any ML backend
        simulated day), so keep it lean: no training, no I/O, no large
        allocations.
 
+Registered as:
+    models/rho2_lr_module.yaml  (backend: callable, target: Rho_2)
 Wired by:
-    configs/Scenario.yaml > scenarios.<your_scenario>.hybrid.rate_overrides:
-        Rho_2: "examples.hybrid_linear_regression_example:carbohydrate_hydrolysis_lr"
+    configs/Scenario.yaml > scenarios.<your_scenario>.hybrid.use: [rho2_lr_module]
 
 The model
 ---------
@@ -37,7 +38,8 @@ The model
 trained against a synthetic "ground truth" that includes Arrhenius-style
 temperature and Gaussian pH effects on top of the classical first-order
 form. The features are passed in raw — exactly the order listed in the
-HybridSpec — so the spec is a faithful description of the model.
+registry YAML's `inputs:` — so the registry is a faithful description of
+the model.
 
 Required signature for a rate override
 --------------------------------------
@@ -69,7 +71,7 @@ def _ground_truth_rho2(X_ch, T_op, pH, k_hyd_ch=10.0):
 def _fit_linear_regression(n_samples: int = 2000, seed: int = 42):
     """
     Fit Rho_2 ≈ b0 + b1·X_ch + b2·T_op + b3·pH on synthetic data.
-    Features are passed raw — same order as the HybridSpec inputs list.
+    Features are passed raw — same order as the registry YAML's inputs list.
     Returns the (4,) coefficient vector.
     """
     rng = np.random.default_rng(seed)
