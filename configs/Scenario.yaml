@@ -18,7 +18,7 @@
 # active_scenario: BSM2_dynamic
 # active_scenario: thermophilic
 # active_scenario: hybrid_demo     # see docs/hybrid.md and examples/
-active_scenario : BSM2_dynamic
+active_scenario : BSM2_ringtest_15min
 
 # ------ Scenario definitions ------
 scenarios:

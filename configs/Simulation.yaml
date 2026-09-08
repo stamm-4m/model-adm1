@@ -14,7 +14,7 @@
 
 # ------ ODE solver ------
 solver:
-  method: "BDF"          # Options: "RK45", "DOP853", "BDF", "Radau", "LSODA"
+  method: "DOP853"          # Options: "RK45", "DOP853", "BDF", "Radau", "LSODA"
   rtol: 1.0e-6            # Relative tolerance
   atol: 1.0e-8            # Absolute tolerance
   max_step: 1.0           # Maximum time step [d] (inf = unconstrained)
