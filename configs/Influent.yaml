@@ -20,6 +20,7 @@ dynamic:
   type: dynamic
   file_path: "configs/daily_averages.csv"
   time_column: "time"
+  # flow_column: "Q"      # uncomment to drive q_ad from the Q column (m3/d) instead of the constant q_ad
   time_units: "d"
   variables:
     # Soluble variables
@@ -51,6 +52,26 @@ dynamic:
     # Ions
     - S_cation  # Strong cations            [M]
     - S_anion   # Strong anions             [M]
+
+# ------ Dynamic mode, full BSM2 resolution (15 min) with dynamic feed flow ------
+# Used by the BSM2_ringtest scenario (see docs/validation.md). Slow (~1 h) but the
+# strictest comparison with the MATLAB reference.
+dynamic_15min_Q:
+  description: "BSM2 digester influent, 15-min resolution, dynamic flow Q(t)"
+  type: dynamic
+  file_path: "configs/digester_influent.csv"
+  time_column: "time"
+  flow_column: "Q"
+  time_units: "d"
+
+# ------ Dynamic mode, daily feed with dynamic flow ------
+dynamic_Q:
+  description: "BSM2 daily-averaged influent with dynamic flow Q(t)"
+  type: dynamic
+  file_path: "configs/daily_averages.csv"
+  time_column: "time"
+  flow_column: "Q"
+  time_units: "d"
 
 # ------ Constant mode ------ All variables must be defined
 constant:

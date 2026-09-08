@@ -14,23 +14,27 @@
 
 # ------ ODE solver ------
 solver:
-  method: "DOP853"          # Options: "RK45", "DOP853", "BDF", "Radau", "LSODA"
+  method: "BDF"          # Options: "RK45", "DOP853", "BDF", "Radau", "LSODA"
   rtol: 1.0e-6            # Relative tolerance
   atol: 1.0e-8            # Absolute tolerance
   max_step: 1.0           # Maximum time step [d] (inf = unconstrained)
+  piecewise: true         # restart the integrator at every influent step (recommended, PyADM1-like)
   dense_output: false     # Dense output (interpolation between steps)
 
 # ------ Duration and output time step ------
 time:
   t_start: 0             # Start time [d]
-  t_end: null            # null = determined by the length of the influent data; revisit because the influent is sometimes constant
+  t_end: null            # null = end of the influent data (dynamic) or t_end_default_constant (constant)
   t_end_default_constant : 30 # Default duration when the influent is constant
-  dt_out: 0.010416666666667            # Output time step [d] (1 = daily)
+  dt_out: null           # Output time step [d]. null = one row per influent row (daily CSV -> daily,
+                         # 15-min CSV -> 15-min, like PyADM1). Set e.g. 1.0 to force daily output.
   units: "d"
 
 # ------ Result-saving options ------
 output:
   save_results: true
+  save_figures: true
+  show_figures: false    # set true to open the matplotlib windows
   output_dir: "results/"
   filename: "dynamic_out.csv"
   state_variables:        # Variables to save (null = all)

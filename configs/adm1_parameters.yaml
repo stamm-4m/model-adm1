@@ -53,11 +53,11 @@ stoichiometric_parameters:
     units: "-"
     description: "Lipid fraction of total COD"
   N_xc:
-    value: 0.00268
+    value: 0.0026857142857   # = 0.0376/14 exactly (rounding breaks N conservation)
     units: "kmol N.kg^-1COD"
     description: "Nitrogen content of composite particulate matter (0.0376/14)"
   N_I:
-    value: 0.0042
+    value: 0.0042857142857   # = 0.06/14 exactly
     units: "kmol N.kg^-1COD"
     description: "Nitrogen content of particulate inerts (0.06/14)"
   N_aa:
@@ -65,7 +65,7 @@ stoichiometric_parameters:
     units: "kmol N.kg^-1COD"
     description: "Nitrogen content of amino acids"
   N_bac:
-    value: 0.00571
+    value: 0.0057142857143   # = 0.08/14 exactly
     units: "kmol N.kg^-1COD"
     description: "Nitrogen content of bacteria (0.08/14)"
   C_xc:
@@ -350,19 +350,19 @@ inhibition_parameters:
 # ------ Physico-chemical parameters ------
 physico_chemical_parameters:
   K_a_va:
-    value: 1.38e-5
+    value: 1.3803843e-5   # = 10^-4.86 (BSM2)
     units: "M"
     description: "Acid dissociation constant of valerate"
   K_a_bu:
-    value: 1.5e-5
+    value: 1.5135612e-5   # = 10^-4.82 (BSM2)
     units: "M"
     description: "Acid dissociation constant of butyrate"
   K_a_pro:
-    value: 1.32e-5
+    value: 1.3182567e-5   # = 10^-4.88 (BSM2)
     units: "M"
     description: "Acid dissociation constant of propionate"
   K_a_ac:
-    value: 1.74e-5
+    value: 1.7378008e-5   # = 10^-4.76 (BSM2)
     units: "M"
     description: "Acid dissociation constant of acetate"
   # Added for COD computation

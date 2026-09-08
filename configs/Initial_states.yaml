@@ -17,10 +17,8 @@
 # ------ BSM2 initial-state set (reference) ------
 BSM2:
   description: "BSM2 reference initial state (Rosen et al., 2006) — established mesophilic regime"
-  pH:
-    value: 7.4655377
-    units: "-"
-    description: "Initial pH in the reactor"
+  # NOTE: no 'pH' key here on purpose. If 'pH' is given, InitialState overwrites S_anion to force
+  # that pH. The BSM2 digester initial state is charge-consistent as given (pH = 7.263).
 
   # Soluble variables (kgCOD.m^-3)
   S_su:
@@ -124,9 +122,9 @@ BSM2:
 
   # Ionic variables and pH
   S_cation:
-    value: 0.04
+    value: 0.0
     units: "M"
-    description: "Strong cations"
+    description: "Strong cations (BSM2 digester steady state: ~0; 0.04 is the INFLUENT value in the BSM2 report)"
   S_anion:
     value: 0.0052101
     units: "M"
@@ -134,22 +132,22 @@ BSM2:
   S_H_ion:
     value: 5.46e-08
     units: "M"
-    description: "H+ ion concentration (pH)"
+    description: "H+ ion concentration (pH 7.263); recomputed from the charge balance at start-up"
   S_va_ion:
     value: 0.012284
-    units: "M"
+    units: "kgCOD.m^-3"
     description: "Valerate ion"
   S_bu_ion:
     value: 0.013953
-    units: "M"
+    units: "kgCOD.m^-3"
     description: "Butyrate ion"
   S_pro_ion:
     value: 0.017511
-    units: "M"
+    units: "kgCOD.m^-3"
     description: "Propionate ion"
   S_ac_ion:
     value: 0.089035
-    units: "M"
+    units: "kgCOD.m^-3"
     description: "Acetate ion"
   S_hco3_ion:
     value: 0.08568

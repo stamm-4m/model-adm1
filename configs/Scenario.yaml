@@ -18,7 +18,7 @@
 # active_scenario: BSM2_dynamic
 # active_scenario: thermophilic
 # active_scenario: hybrid_demo     # see docs/hybrid.md and examples/
-active_scenario : hybrid_demo
+active_scenario : BSM2_dynamic
 
 # ------ Scenario definitions ------
 scenarios:
@@ -35,6 +35,31 @@ scenarios:
       units: "K"
       description: "Operating temperature (mesophilic, 35 C)"
     parameter_overrides: {}         # No override — uses adm1_parameters.yaml
+
+  # --- BSM2 ring test, daily feed + dynamic Q (recommended validation run, ~3 min) ---
+  BSM2_ringtest:
+    description: >
+      BSM2 validation run: daily-averaged influent driven with the dynamic flow Q(t).
+      Compare results/dynamic_out.csv to tests/data/Matlabout_dyn.csv with
+      tests/benchmark_bsm2.py --dynamic-q.
+    initial_states: BSM2
+    influent_mode: dynamic_Q
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides: {}
+
+  # --- BSM2 ring test at full 15-min resolution (~1 h) ---
+  BSM2_ringtest_15min:
+    description: >
+      Strictest BSM2 validation: 15-min influent, dynamic Q(t). With dt_out: null the
+      output has one row per influent row (26 881), like PyADM1 and Matlabout_dyn.csv. ~50 min.
+    initial_states: BSM2
+    influent_mode: dynamic_15min_Q
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides: {}
 
   # --- BSM2 scenario with constant influent ---
   BSM2_constant:

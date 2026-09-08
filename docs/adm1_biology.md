@@ -19,6 +19,22 @@ course.
 break down organic matter **in the absence of oxygen** and produce
 **biogas** (mostly CH₄ + CO₂) plus a stabilised digestate.
 
+```mermaid
+flowchart LR
+    feed["<b>Substrate</b><br/>wastewater · manure ·<br/>food waste"]
+    bio[("<b>Anaerobic<br/>digester</b><br/>CSTR")]
+    biogas["<b>Biogas</b><br/>CH₄ + CO₂"]
+    digestate["<b>Digestate</b><br/>(liquid effluent)"]
+    feed --> bio
+    bio --> biogas
+    bio --> digestate
+
+    classDef io fill:#eef6fb,stroke:#1a6e9e,color:#0b3a5b
+    classDef tank fill:#e6f7f2,stroke:#117a65,color:#0b5345
+    class feed,biogas,digestate io
+    class bio tank
+```
+
 In industry it is used to:
 
 - treat wastewater, agricultural slurry, food waste,

@@ -204,10 +204,9 @@ def main():
 
     t_end_cfg = time_cfg.get("t_end", None)
 
-    if t_end_cfg is None:
-        # If the influent is constant or short, fall back to a sensible default duration
+    if t_end_cfg is not None:
         t_end = safe_float(t_end_cfg, 365.0)
-    
+
     elif getattr(influent, "mode", "constant") == "dynamic":
         # Dynamic influent: simulation duration = length of the influent time series
         # This ensures we don't simulate beyond available input data
@@ -222,8 +221,16 @@ def main():
         t_end = t_end_default
 
 
-    dt_out = safe_float(time_cfg.get("dt_out", 1.0), 1.0) # output time step (d), default = 1 day
-    t_eval = build_time_vector(t_start, t_end, dt_out)
+    dt_out_cfg = time_cfg.get("dt_out", None)
+    if dt_out_cfg is None and getattr(influent, "mode", "constant") == "dynamic":
+        # dt_out: null -> one output row per influent row (same grid as the input CSV, like PyADM1)
+        t_eval = time_data[(time_data >= t_start) & (time_data <= t_end)].astype(float)
+        if t_eval[-1] < t_end:
+            t_eval = np.append(t_eval, t_end)
+        dt_out = float(np.median(np.diff(t_eval))) if len(t_eval) > 1 else float(t_end - t_start)
+    else:
+        dt_out = safe_float(dt_out_cfg, 1.0)                  # output time step (d)
+        t_eval = build_time_vector(t_start, t_end, dt_out)
 
 
     # ============================================================
@@ -317,7 +324,7 @@ def main():
         print(f"  Method        : {solver_cfg.get('method', 'BDF')}")
         print(f"  rtol / atol   : {solver_cfg.get('rtol', 1e-5):.0e} / {solver_cfg.get('atol', 1e-7):.0e}")
         print(f"  Time horizon  : {t_start:.1f} → {t_end:.1f} d")
-        print(f"  Output step   : {dt_out:.2f} d/point")
+        print(f"  Output step   : {dt_out:.4f} d/point  ({len(t_eval)} rows)")
         print("━" * 66 + "\n")
 
 
@@ -365,6 +372,9 @@ def main():
     def ADM1_wrapper(t, y):
         # Inject the current influent into the reactor (updates feed concentrations)
         reactor.influent_state = get_influent_for_time(t)
+        # FIX (optional): dynamic feed flow q_ad(t) from the influent 'Q' column
+        if "q_ad_in" in reactor.influent_state:
+            param.params["q_ad"] = reactor.influent_state["q_ad_in"]
         # Compute all 38 differential equations of the ADM1 model
         dydt = reactor.ADM1_ODE(t, y)
 
@@ -407,17 +417,56 @@ def main():
     t0 = time.time()
     _wall_start[0] = t0
 
-    sol = solve_ivp(
-        fun=ADM1_wrapper,
-        t_span=(t_start, t_end),
-        y0=y0,
-        t_eval=t_eval,
+    # FIX: the influent is a piecewise-constant (zero-order-hold) forcing. Restarting the
+    # integrator at every influent step (as PyADM1 does) is the correct way to handle the
+    # discontinuities; a single solve_ivp with the feed switched inside the RHS is only
+    # acceptable when the feed step is >= max_step. Controlled by solver.piecewise (default true).
+    solver_kwargs = dict(
         method=solver_cfg.get("method", "BDF"),
         rtol=solver_cfg.get("rtol", 1e-5),
         atol=solver_cfg.get("atol", 1e-7),
         max_step=solver_cfg.get("max_step", 0.5),
-        dense_output=solver_cfg.get("dense_output", False),
     )
+    piecewise = bool(solver_cfg.get("piecewise", True)) and getattr(influent, "mode", "constant") == "dynamic"
+    if piecewise and len(time_data) > 1:
+        # never let one solver step straddle several influent rows
+        solver_kwargs["max_step"] = min(float(solver_kwargs["max_step"]), float(np.min(np.diff(time_data))))
+
+    if piecewise:
+        # influent breakpoints inside the horizon (feed row i is active on (t_{i-1}, t_i])
+        breaks = time_data[(time_data > t_start) & (time_data < t_end)]
+        edges = np.concatenate(([t_start], breaks, [t_end]))
+        ys, ts = [], []
+        y = np.asarray(y0, dtype=float)
+        for k in range(len(edges) - 1):
+            ta, tb = float(edges[k]), float(edges[k + 1])
+            if tb <= ta:
+                continue
+            inside = t_eval[(t_eval > ta) & (t_eval <= tb)]
+            if k == 0 and t_eval[0] <= ta + 1e-12:
+                ts.append(t_eval[0]); ys.append(y.copy())
+            seg = solve_ivp(ADM1_wrapper, (ta, tb), y, t_eval=np.unique(np.append(inside, tb)), **solver_kwargs)
+            if not seg.success:
+                raise RuntimeError(f"Solver failure on [{ta}, {tb}]: {seg.message}")
+            for tt, yy in zip(seg.t, seg.y.T):
+                if tt in inside:
+                    ts.append(tt); ys.append(yy)
+            y = seg.y[:, -1]
+
+        class _Sol:  # minimal solve_ivp-like result
+            pass
+        sol = _Sol()
+        sol.t = np.asarray(ts); sol.y = np.asarray(ys).T
+        sol.success, sol.message = True, f"piecewise integration over {len(edges)-1} influent intervals"
+    else:
+        sol = solve_ivp(
+            fun=ADM1_wrapper,
+            t_span=(t_start, t_end),
+            y0=y0,
+            t_eval=t_eval,
+            dense_output=solver_cfg.get("dense_output", False),
+            **solver_kwargs,
+        )
 
     elapsed = time.time() - t0
     print(f"\nSimulation time: {int(elapsed // 60)} min {int(elapsed % 60)} s")

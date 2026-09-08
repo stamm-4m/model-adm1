@@ -59,6 +59,7 @@ class Influent:
         self._time: np.ndarray | None = None
         self._data: pd.DataFrame | None = None          # mode dynamic
         self._constant_values: dict = {}                # mode constant
+        self._flow_col: str | None = None               # dynamic feed flow column (optional)
         self._load()
 
     # ------------------------------------------------------------------
@@ -93,6 +94,10 @@ class Influent:
             time_col = config.get("time_column", "time")
             self._data = pd.read_csv(csv_path)
             self._time = self._data[time_col].values
+            # optional: name of the flow-rate column (m3/d) to drive q_ad dynamically (BSM2: 'Q')
+            self._flow_col = config.get("flow_column", None)
+            if self._flow_col is not None and self._flow_col not in self._data.columns:
+                raise KeyError(f"flow_column '{self._flow_col}' not found in {csv_path}")
 
         elif self.mode == "constant":
             self._constant_values = {
@@ -147,7 +152,10 @@ class Influent:
         """
         if self.mode == "dynamic":
             step = min(step, len(self._time) - 1)
-            return {var + "_in": self._data[var][step] for var in INFLUENT_VARS}
+            out = {var + "_in": self._data[var][step] for var in INFLUENT_VARS}
+            if self._flow_col is not None:
+                out["q_ad_in"] = float(self._data[self._flow_col][step])
+            return out
         else:
             return {var + "_in": self._constant_values.get(var, 0.0) for var in INFLUENT_VARS}
 

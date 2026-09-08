@@ -1,166 +1,143 @@
-# ADM1 — Anaerobic Digestion Model No. 1
+# model-adm1 — Anaerobic Digestion Model No. 1 in Python
 
-A Python implementation of **ADM1**, with first-class hooks for plugging
-ML models in. Adapted from [PyADM1](https://github.com/CaptainFerMag/PyADM1).
+A modular Python implementation of **ADM1** (Batstone et al., 2002) in its BSM2 form
+(Rosen & Jeppsson, 2006), refactored from [PyADM1](https://github.com/CaptainFerMag/PyADM1),
+configured entirely through YAML, and with optional plug points for ML models (hybrid mode).
 
-**Authors**
-- Margaux Bonal — <margaux.bonal@inrae.fr>
-- David Camilo Corrales — <David-Camilo.Corrales-Munoz@inrae.fr>
+**Validated:** reproduces the MATLAB/Simulink BSM2 reference to ≤ 0.04 % on all 38 state
+variables (see [docs/validation.md](docs/validation.md)).
 
----
-
-## Anaerobic digestion in 30 seconds (for ML/CS readers)
-
-A reactor full of microbes turns organic waste into **biogas** (methane).
-ADM1 is the standard mathematical model of that reactor — a system of
-**38 coupled ODEs** describing concentrations of substrates, microbial
-populations, dissolved gases, and ions.
-
-```mermaid
-flowchart LR
-    feed["<b>Substrate</b><br/>wastewater · manure ·<br/>food waste"]
-    bio[("<b>Anaerobic<br/>digester</b><br/>CSTR")]
-    biogas["<b>Biogas</b><br/>CH₄ + CO₂"]
-    digestate["<b>Digestate</b><br/>(liquid effluent)"]
-    feed --> bio
-    bio --> biogas
-    bio --> digestate
-
-    classDef io fill:#eef6fb,stroke:#1a6e9e,color:#0b3a5b
-    classDef tank fill:#e6f7f2,stroke:#117a65,color:#0b5345
-    class feed,biogas,digestate io
-    class bio tank
-```
-
-Inside the reactor, organic matter flows through four biochemical stages
-in series, each performed by a different group of microbes:
-
-```mermaid
-flowchart LR
-    s[Polymers] --> h[Hydrolysis] --> a[Acidogenesis] --> ac[Acetogenesis] --> m[Methanogenesis] --> ch4[CH₄ + CO₂]
-    classDef stage fill:#fff7e6,stroke:#cc8800,color:#663300
-    class h,a,ac,m stage
-```
-
-Each stage's rate is **Monod kinetics** gated by inhibition factors (pH,
-NH₃, H₂). The full math + CS-friendly walkthrough is in
-[docs/adm1_biology.md](docs/adm1_biology.md).
+**Authors:** Margaux Bonal — <margaux.bonal@inrae.fr> · David Camilo Corrales — <David-Camilo.Corrales-Munoz@inrae.fr> (INRAE / TBI)
 
 ---
 
-## What this simulator does
+## 1. Install
 
-```mermaid
-flowchart LR
-    cfg[configs/*.yaml<br/>scenario · parameters ·<br/>initial states · influent] --> sim
-    inf[CSV influent<br/>time series] --> sim[ADM1 ODE<br/>BDF solver]
-    sim --> csv[results/dynamic_out.csv<br/>full 38-state trajectory]
-    sim --> plots[plots: biogas ·<br/>biomass · pH/alkalinity]
-
-    classDef io fill:#eef6fb,stroke:#1a6e9e,color:#0b3a5b
-    classDef core fill:#e6f7f2,stroke:#117a65,color:#0b5345
-    class cfg,inf,csv,plots io
-    class sim core
-```
-
-Stack: Python ≥ 3.10, NumPy, SciPy, Pandas, Matplotlib, PyYAML.
-
----
-
-## Quick start
+Python ≥ 3.10.
 
 ```bash
 git clone https://github.com/stamm-4m/model-adm1.git
 cd model-adm1
-python -m venv .venv && .venv\Scripts\activate     # Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt    # numpy scipy pandas matplotlib pyyaml
+```
+
+## 2. Run
+
+```bash
 python main.py
 ```
 
-Default scenario is `BSM2_dynamic` (mesophilic reference run). Pick a
-different one in `configs/Scenario.yaml`. Outputs land in `results/`.
+Runs the scenario named in `configs/Scenario.yaml` (`active_scenario`, default `BSM2_dynamic`:
+the BSM2 reference digester, 280 days of daily-averaged influent, ~2 min) and writes
 
----
-
-## Hybrid mode — drop in your ML model
-
-Each hybrid component is a YAML file under `models/`. The directory **is**
-the registry. Scenarios reference models by name.
-
-```mermaid
-flowchart LR
-    yaml["<b>models/foo.yaml</b><br/>target / backend /<br/>artefact / inputs"]
-    art[("artefact<br/>(.npz · .joblib ·<br/>Python fn)")]
-    reg{{src/registry.py<br/>load_registry}}
-    sc["<b>Scenario.yaml</b><br/>hybrid.use: [foo]"]
-    rx[("ADM1 reactor<br/>foo replaces<br/>target hook")]
-    yaml --> reg
-    art -.-> reg
-    reg --> sc
-    sc --> rx
-
-    classDef yaml fill:#fff4e6,stroke:#cc6600,color:#663300
-    classDef code fill:#e6f7f2,stroke:#117a65,color:#0b5345
-    class yaml,sc yaml
-    class reg,rx code
+```
+results/dynamic_out.csv          time + 38 states + pH, charge residual, COD diagnostics
+results/figures/*.png            biogas · biomass · pH/alkalinity
 ```
 
-Three plug points, all optional:
-
-| Tier | Target syntax       | Replaces                                    |
-| ---- | ------------------- | ------------------------------------------- |
-| 1    | `Rho_1 .. Rho_19`   | one of the 19 process rates                 |
-| 1    | `I_5..I_12, I_nh3`  | one of the inhibition factors               |
-| 2    | `residual:<state>`  | UDE-style additive correction on `dy/dt`    |
-
-Three built-in backends: `callable` (any Python function), `linear_lstsq`
-(NumPy `.npz`), `sklearn` (joblib).
+Other commands:
 
 ```bash
-python main.py --list-models       # registered models
-python main.py --list-hooks        # available plug points
+python main.py --list-models       # ML plug-ins registered in models/
+python main.py --list-hooks        # what a plug-in may replace (Rho_1…Rho_19, I_5…I_12, I_nh3, dy/dt residual)
 ```
 
-Full guide: [docs/hybrid.md](docs/hybrid.md). Recipes for each backend:
-[models/README.md](models/README.md). Worked examples:
-[examples/](examples/).
+## 3. Configure — one switchboard, four catalogues, one numerics file
 
----
+```
+configs/Scenario.yaml            ← SWITCHBOARD: `active_scenario: <name>`; each scenario picks
+        │                          one entry from each catalogue (+ optional overrides)
+        ├── initial_states: ──►  configs/Initial_states.yaml   digester state at t = 0 (38 variables)
+        ├── influent_mode:  ──►  configs/Influent.yaml         feeds: CSV time series or constant values
+        ├── T_op, parameter_overrides ─► configs/adm1_parameters.yaml   ADM1/BSM2 constants (do not edit; override)
+        └── hybrid.use: [...] ──►  models/*.yaml                ML plug-ins (optional)
 
-## Project structure
+configs/Simulation.yaml          ← NUMERICS: solver, tolerances, horizon, output step, file names
+```
+
+To run another case, change **one line**:
+
+```yaml
+# configs/Scenario.yaml
+active_scenario : BSM2_ringtest        # e.g. the run with dynamic feed flow Q(t)
+```
+
+To create a case: add a feed block to `Influent.yaml` and/or a start state to `Initial_states.yaml`,
+then combine them in a new scenario block:
+
+```yaml
+  my_case:
+    initial_states: BSM2                # key in Initial_states.yaml
+    influent_mode: my_plant             # key in Influent.yaml
+    T_op: {value: 308.15, units: "K"}
+    parameter_overrides: {q_ad: {value: 120.0}}
+```
+
+Provided scenarios: `BSM2_dynamic` (default), `BSM2_ringtest`, `BSM2_ringtest_15min`,
+`BSM2_constant`, `thermophilic`, `batch_validation`, `pig_slurry_test`, and three `hybrid_*` demos
+(not pure ADM1). Everything above in detail — templates, pitfalls, units, workflows — is in
+**[docs/user_manual.md](docs/user_manual.md)**.
+
+## 4. Validate
+
+The model is verified with the **BSM2 ring test**: the same 280-day dynamic influent is run
+through the reference MATLAB/Simulink BSM2 implementation (`tests/data/Matlabout_dyn.csv`) and
+through this code, and all 38 states are compared.
+
+```bash
+python main.py                                     # active_scenario: BSM2_dynamic
+python tests/benchmark_bsm2.py --results results/dynamic_out.csv \
+       --reference tests/data/Matlabout_dyn.csv --outdir results/benchmark
+```
+
+→ `VERDICT: PASS` plus a table, a Markdown summary and an overlay plot in `results/benchmark/`.
+Run it after any change to `src/`; exit code ≠ 0 means the equations changed.
+Protocol, metrics and expected numbers: [docs/validation.md](docs/validation.md).
+
+## 5. Hybrid mode (optional)
+
+Replace any process rate `Rho_1…Rho_19`, any inhibition factor `I_5…I_12, I_nh3`, or add a
+residual correction on `dy/dt` with your own model, without touching `src/`: describe the model
+in a `models/<name>.yaml` (target, backend `callable` / `linear_lstsq` / `sklearn`, artefact) and
+list it in a scenario under `hybrid: {enabled: true, use: [<name>]}`.
+Guide: [docs/hybrid.md](docs/hybrid.md) · recipes: [models/README.md](models/README.md) ·
+worked examples: [examples/README.md](examples/README.md).
+
+## 6. Project structure
 
 ```
 model-adm1/
-├── main.py                      # entry point
-├── initial_states.py            # 38-state initial vector
-├── configs/                     # YAML configuration (one file per concern)
-├── src/
-│   ├── reactor.py               # ADM1 ODEs, mass balances, 19 process rates
-│   ├── parameters.py            # parameter loader + scenario overrides
-│   ├── influent.py              # influent interface
-│   ├── acid_base.py             # DAE: pH, HCO₃⁻, NH₃ equilibrium
-│   ├── hybrid.py                # registry → reactor wiring
-│   └── registry.py              # models/*.yaml loader + --list-* commands
-├── models/                      # hybrid-model registry (one YAML per model)
-├── examples/                    # four hybrid examples (rate, inhibition, residual, LR)
-├── plots/                       # diagnostic plotting
-└── docs/                        # extended docs (biology, configuration, hybrid)
+├── main.py                  entry point (load configs → integrate → CSV + figures)
+├── initial_states.py        38-state initial vector loader
+├── configs/                 Scenario.yaml (switchboard) · Influent.yaml · Initial_states.yaml ·
+│                            adm1_parameters.yaml · Simulation.yaml · Calibration.yaml · influent CSVs
+├── src/                     reactor.py (ODEs) · acid_base.py (pH/DAE) · parameters.py · influent.py ·
+│                            hybrid.py · registry.py
+├── models/                  hybrid-model registry (one YAML per model)
+├── examples/                hybrid plug-in examples
+├── plots/                   diagnostic figures
+├── tests/                   benchmark_bsm2.py + data/ (MATLAB BSM2 reference, PyADM1 ring test)
+├── results/                 outputs
+└── docs/                    documentation — start at docs/README.md
 ```
 
----
+## 7. Documentation
 
-## Where to go next
+| I want to … | read |
+|---|---|
+| run and configure the model | [docs/user_manual.md](docs/user_manual.md) |
+| know how (and how well) it is validated | [docs/validation.md](docs/validation.md) · [full report](docs/validation_report_2026-09-08.md) |
+| understand the biology / the 38-state ODE (CS framing) | [docs/adm1_biology.md](docs/adm1_biology.md) |
+| understand the configuration design | [docs/configuration.md](docs/configuration.md) |
+| see how a run flows through the code | [docs/architecture.md](docs/architecture.md) |
+| plug in an ML model | [docs/hybrid.md](docs/hybrid.md) |
 
-| You want to …                                     | Read |
-| ------------------------------------------------- | ---- |
-| Understand the biology (CS framing)               | [docs/adm1_biology.md](docs/adm1_biology.md) |
-| Understand the YAML configuration                 | [docs/configuration.md](docs/configuration.md) |
-| Plug in your ML model                             | [docs/hybrid.md](docs/hybrid.md) |
-| Save / load a trained model                       | [models/README.md](models/README.md) |
-| See worked plug-in examples                       | [examples/README.md](examples/README.md) |
+## 8. References and licence
 
----
+* Batstone D.J. et al. (2002). *Anaerobic Digestion Model No. 1 (ADM1)*. IWA STR No. 13.
+* Rosen C., Jeppsson U. (2006). *Aspects on ADM1 implementation within the BSM2 framework*. Lund University.
+* Sadrimajd P. et al. (2021). *PyADM1: a Python implementation of ADM1*. bioRxiv 10.1101/2021.03.03.433746.
 
-## License
-
-[Apache 2.0](LICENSE).
+Licence: [Apache 2.0](LICENSE). Reference data in `tests/data/` from PyADM1 (MIT).

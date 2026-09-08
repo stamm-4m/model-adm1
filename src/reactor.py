@@ -21,17 +21,16 @@ Partial pressures are always computed from these states:
 - p_gas_h2, p_gas_ch4, p_gas_co2 [bar]
 
 
-ADM1 Reactor Simulation (adapted from PyADM1).
-Bug fixes introduced in this version:
-  BUG 1 — compute_gas_transfer: Rho_T_10 used S_IC instead of S_co2
-           → over-estimated CO2 stripping, drained S_IC too fast, distorted
-             alkalinity and pH.
-  BUG 2 — mass_balances / ADM1_ODE: the DAE variables (S_H_ion, S_hco3_ion,
-           S_nh3…) were frozen at their initial values because
-           compute_acid_base_equilibrium was never called → artificial pH and
-           acid-base equilibria.
-  BUG 3 — s_12 in the carbon balance: the C_IC consumption term was missing
-           for hydrogenotrophic methanogenesis (4H2 + CO2 → CH4 + 2H2O).
+Implementation notes (verified against PyADM1 and the BSM2 MATLAB reference, Sept 2026):
+  - Acid-base equilibrium (S_H_ion, S_hco3_ion, S_nh3, VFA ions) is solved algebraically
+    inside every RHS call (DAE formulation of Rosen & Jeppsson 2006). PyADM1 solves it
+    once per influent step instead; both are valid, results agree to < 1e-3 pH units.
+  - S_h2 is integrated as a stiff ODE (PyADM1 solves it algebraically). Use an implicit
+    solver (BDF / Radau / LSODA).
+  - Rho_T_10 uses dissolved free CO2 (S_co2), and s_12 includes the inorganic-carbon sink of
+    hydrogenotrophic methanogenesis — identical to PyADM1 and the BSM2 report.
+  - K_w, K_a_co2, K_a_IN are recomputed from T_op (van 't Hoff, BSM2 Table 3) in __init__,
+    consistently with the Henry constants.
 """
 
 import numpy as np
@@ -71,6 +70,14 @@ class ADM1Reactor:
         self.K_H_ch4 = 0.0014 * np.exp((-14240 / (100 * param.R)) * (1 / param.T_base - 1 / param.T_op))
         self.K_H_h2 = 7.8e-4 * np.exp((-4180 / (100 * param.R)) * (1 / param.T_base - 1 / param.T_op))
         self.p_gas_h2o = 0.0313 * np.exp(5290 * (1 / param.T_base - 1 / param.T_op))
+
+        # FIX: acid-base constants are temperature dependent (Rosen & Jeppsson 2006, Table 3).
+        # The YAML values are the 35 C values; recompute them for the actual T_op so that
+        # non-mesophilic scenarios stay consistent with the Henry constants above.
+        dT = 1 / param.T_base - 1 / param.T_op
+        param.params["K_w"] = 10 ** -14.0 * np.exp((55900 / (100 * param.R)) * dT)
+        param.params["K_a_co2"] = 10 ** -6.35 * np.exp((7646 / (100 * param.R)) * dT)
+        param.params["K_a_IN"] = 10 ** -9.25 * np.exp((51965 / (100 * param.R)) * dT)
 
         self.K_pH_aa = 10 ** (-(param.pH_LL_aa + param.pH_UL_aa) / 2)
         self.nn_aa = 3.0 / (param.pH_UL_aa - param.pH_LL_aa)
