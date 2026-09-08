@@ -1,0 +1,153 @@
+# Configuration/scenarios
+# Scenarios
+
+# Author: Bonal Margaux
+# Email: margaux.bonal@inrae.fr
+# Date: 09/04/2026
+
+# ============================================================
+# ADM1 simulation scenarios
+# ============================================================
+# This file defines the simulation cases to run.
+# Each scenario bundles the structural choices required:
+# - initial states, influent mode, duration, parameter overrides
+#   (for now, only scenarios with a temperature change).
+# ============================================================
+
+# ------ Active scenario ------
+# active_scenario: BSM2_dynamic
+# active_scenario: thermophilic
+# active_scenario: hybrid_demo     # see docs/hybrid.md and examples/
+active_scenario : hybrid_demo
+
+# ------ Scenario definitions ------
+scenarios:
+
+  # --- Reference BSM2 scenario with dynamic influent ---
+  BSM2_dynamic:
+    description: >
+      Reference BSM2 simulation (Rosen et al., 2006).
+      Mesophilic conditions (35 C), daily dynamic influent.
+    initial_states: BSM2            # Key in configs/states/initial_states.yaml
+    influent_mode: dynamic          # Key in configs/influent/influent.yaml
+    T_op:
+      value: 308.15
+      units: "K"
+      description: "Operating temperature (mesophilic, 35 C)"
+    parameter_overrides: {}         # No override — uses adm1_parameters.yaml
+
+  # --- BSM2 scenario with constant influent ---
+  BSM2_constant:
+    description: >
+      BSM2 simulation with a constant influent (mean values).
+      Useful to reach a reference steady state.
+    initial_states: BSM2
+    influent_mode: constant
+    T_op:
+      value: 308.15
+      units: "K"
+      description: "Operating temperature (mesophilic, 35 C)"
+    parameter_overrides: {}
+
+  # --- Thermophilic scenario (example) ---
+  thermophilic:
+    description: >
+      Thermophilic conditions (55 C) with the BSM2 dynamic influent.
+      Higher ammonia concentration.
+    initial_states: BSM2
+    influent_mode: dynamic
+    T_op:
+      value: 328.15
+      units: "K"
+      description: "Operating temperature (thermophilic, 55 C)"
+    parameter_overrides:
+      K_I_nh3:
+        value: 0.003
+        units: "M"
+        description: "Increased NH3 inhibition constant in thermophilic regime"
+
+  # --- Batch-validation scenario (example) ---
+  batch_validation:
+    description: >
+      Batch-mode simulation (no feed).
+      Useful to validate the biochemical kinetics.
+    initial_states: BSM2
+    influent_mode: constant
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides:
+      q_ad:
+        value: 0.0
+        units: "m^3.d^-1"
+        description: "Zero flow — batch mode"
+
+  # --- Hybrid-mode demo (Tiers 1 + 2) ---
+  # Plugs three registered models from models/*.yaml into a BSM2 dynamic run.
+  # See `python main.py --list-models` for what is registered and
+  # `python main.py --list-hooks` for what can be plugged into.
+  hybrid_demo:
+    description: >
+      BSM2 dynamic with all three hybrid plug-points enabled (Tiers 1 + 2):
+      a temperature-aware Rho_11, a Hill-style I_nh3, and a small residual
+      correction on dissolved methane.
+    initial_states: BSM2
+    influent_mode: dynamic
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides: {}
+    hybrid:
+      enabled: true
+      use: [rho11_T_aware, nh3_hill, methane_bias]
+
+  # --- Hybrid LR demo: Rho_2 replaced by a Python-callable LR ---
+  # The regression is fitted at module import time on synthetic data and
+  # used in place of the classical first-order carbohydrate hydrolysis.
+  hybrid_lr_demo:
+    description: >
+      BSM2 dynamic with Rho_2 replaced by a linear-regression model loaded
+      as a Python callable (fitted at module import via np.linalg.lstsq).
+    initial_states: BSM2
+    influent_mode: dynamic
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides: {}
+    hybrid:
+      enabled: true
+      use: [rho2_lr_module]
+
+  # --- Hybrid LR demo: Rho_2 replaced by a saved artefact ---
+  # Same prediction as hybrid_lr_demo, but the LR weights are loaded from a
+  # committed .npz under models/ (no fit at startup). Useful to A/B the two
+  # load paths.
+  hybrid_lr_spec_demo:
+    description: >
+      BSM2 dynamic with Rho_2 replaced by a saved linear-regression model
+      (models/rho2_lr_synthetic.{yaml,npz}).
+    initial_states: BSM2
+    influent_mode: dynamic
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides: {}
+    hybrid:
+      enabled: true
+      use: [rho2_lr_synthetic]
+
+  # --- New scenario: pig-slurry test ---
+  pig_slurry_test:
+    description: >
+      Pig-slurry simulation under mesophilic conditions.
+      Starts from the BSM2 initial state to ensure numerical stability.
+    initial_states: BSM2
+    influent_mode: pig_slurry
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides:
+      q_ad:
+        value: 35.0
+        units: "m^3.d^-1"
+        description: "Reduced flow for a stable start-up on pig slurry"

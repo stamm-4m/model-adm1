@@ -1,0 +1,185 @@
+
+# Configuration/Influent
+# ADM1 parameters
+
+# Author: Bonal Margaux
+# Email: margaux.bonal@inrae.fr
+# Date: 09/04/2026
+
+# ============================================================
+# Influent configuration
+# ============================================================
+# This file defines the digester feed conditions.
+# Two modes are available: dynamic (CSV file) or constant.
+# The active mode is selected in scenarios/scenarios.yaml.
+# ============================================================
+
+# ------ Dynamic mode (time series) ------
+dynamic:
+  description: "Dynamic influent from BSM2 daily data"
+  type: dynamic
+  file_path: "configs/daily_averages.csv"
+  time_column: "time"
+  time_units: "d"
+  variables:
+    # Soluble variables
+    - S_su      # Monosaccharides           [kgCOD.m^-3]
+    - S_aa      # Amino acids               [kgCOD.m^-3]
+    - S_fa      # LCFA                      [kgCOD.m^-3]
+    - S_va      # Valerate                  [kgCOD.m^-3]
+    - S_bu      # Butyrate                  [kgCOD.m^-3]
+    - S_pro     # Propionate                [kgCOD.m^-3]
+    - S_ac      # Acetate                   [kgCOD.m^-3]
+    - S_h2      # Dissolved hydrogen        [kgCOD.m^-3]
+    - S_ch4     # Dissolved methane         [kgCOD.m^-3]
+    - S_IC      # Inorganic carbon          [kmol C.m^-3]
+    - S_IN      # Inorganic nitrogen        [kmol N.m^-3]
+    - S_I       # Soluble inert COD         [kgCOD.m^-3]
+    # Particulate variables
+    - X_xc      # Composite material        [kgCOD.m^-3]
+    - X_ch      # Carbohydrates             [kgCOD.m^-3]
+    - X_pr      # Proteins                  [kgCOD.m^-3]
+    - X_li      # Lipids                    [kgCOD.m^-3]
+    - X_su      # Sugar biomass             [kgCOD.m^-3]
+    - X_aa      # Amino-acid biomass        [kgCOD.m^-3]
+    - X_fa      # LCFA biomass              [kgCOD.m^-3]
+    - X_c4      # C4 biomass                [kgCOD.m^-3]
+    - X_pro     # Propionate biomass        [kgCOD.m^-3]
+    - X_ac      # Acetate biomass           [kgCOD.m^-3]
+    - X_h2      # Hydrogen biomass          [kgCOD.m^-3]
+    - X_I       # Particulate inert COD     [kgCOD.m^-3]
+    # Ions
+    - S_cation  # Strong cations            [M]
+    - S_anion   # Strong anions             [M]
+
+# ------ Constant mode ------ All variables must be defined
+constant:
+  description: "Constant influent — BSM2 mean values (Rosen et al., 2006)"
+  type: constant
+  pH:
+    value: 7.2
+    units: "-"
+  # Flow rate
+  q_ad:
+    value: 178.4674
+    units: "m^3.d^-1"
+  # Soluble variables
+  S_su:
+    value: 0.01
+    units: "kgCOD.m^-3"
+  S_aa:
+    value: 0.001
+    units: "kgCOD.m^-3"
+  S_fa:
+    value: 0.001
+    units: "kgCOD.m^-3"
+  S_va:
+    value: 0.001
+    units: "kgCOD.m^-3"
+  S_bu:
+    value: 0.001
+    units: "kgCOD.m^-3"
+  S_pro:
+    value: 0.001
+    units: "kgCOD.m^-3"
+  S_ac:
+    value: 0.001
+    units: "kgCOD.m^-3"
+  S_h2:
+    value: 1.0e-8
+    units: "kgCOD.m^-3"
+  S_ch4:
+    value: 1.0e-5
+    units: "kgCOD.m^-3"
+  S_IC:
+    value: 0.04
+    units: "kmol C.m^-3"
+  S_IN:
+    value: 0.01
+    units: "kmol N.m^-3"
+  S_I:
+    value: 0.02
+    units: "kgCOD.m^-3"
+  # Particulate variables
+  X_xc:
+    value: 2.0
+    units: "kgCOD.m^-3"
+  X_ch:
+    value: 0.5
+    units: "kgCOD.m^-3"
+  X_pr:
+    value: 0.5
+    units: "kgCOD.m^-3"
+  X_li:
+    value: 0.4
+    units: "kgCOD.m^-3"
+  X_su:
+    value: 0.0
+    units: "kgCOD.m^-3"
+  X_aa:
+    value: 0.0
+    units: "kgCOD.m^-3"
+  X_fa:
+    value: 0.0
+    units: "kgCOD.m^-3"
+  X_c4:
+    value: 0.0
+    units: "kgCOD.m^-3"
+  X_pro:
+    value: 0.0
+    units: "kgCOD.m^-3"
+  X_ac:
+    value: 0.0
+    units: "kgCOD.m^-3"
+  X_h2:
+    value: 0.0
+    units: "kgCOD.m^-3"
+  X_I:
+    value: 0.0
+    units: "kgCOD.m^-3"
+  S_cation:
+    value: 0.04
+    units: "M"
+  S_anion:
+    value: 0.02
+    units: "M"
+
+
+
+# ------ New influent: pig slurry (high-nitrogen load) ------
+pig_slurry:
+  description: "Pig slurry under mesophilic conditions, recalibrated for a more realistic start-up pH"
+  type: constant
+  pH:     {value: 7.2, units: "-"}
+
+  # Soluble
+  S_su:   {value: 0.15, units: "kgCOD.m^-3"}
+  S_aa:   {value: 0.80, units: "kgCOD.m^-3"}
+  S_fa:   {value: 0.05, units: "kgCOD.m^-3"}
+  S_va:   {value: 0.001, units: "kgCOD.m^-3"}
+  S_bu:   {value: 0.001, units: "kgCOD.m^-3"}
+  S_pro:  {value: 0.001, units: "kgCOD.m^-3"}
+  S_ac:   {value: 0.02, units: "kgCOD.m^-3"}
+  S_h2:   {value: 1.0e-8, units: "kgCOD.m^-3"}
+  S_ch4:  {value: 1.0e-5, units: "kgCOD.m^-3"}
+  S_IC:   {value: 0.12, units: "kmol C.m^-3"}
+  S_IN:   {value: 0.08, units: "kmol N.m^-3"}
+  S_I:    {value: 0.30, units: "kgCOD.m^-3"}
+
+  # Particulate
+  X_xc:   {value: 6.0, units: "kgCOD.m^-3"}
+  X_ch:   {value: 1.0, units: "kgCOD.m^-3"}
+  X_pr:   {value: 2.5, units: "kgCOD.m^-3"}
+  X_li:   {value: 0.8, units: "kgCOD.m^-3"}
+  X_su:   {value: 0.0, units: "kgCOD.m^-3"}
+  X_aa:   {value: 0.0, units: "kgCOD.m^-3"}
+  X_fa:   {value: 0.0, units: "kgCOD.m^-3"}
+  X_c4:   {value: 0.0, units: "kgCOD.m^-3"}
+  X_pro:  {value: 0.0, units: "kgCOD.m^-3"}
+  X_ac:   {value: 0.0, units: "kgCOD.m^-3"}
+  X_h2:   {value: 0.0, units: "kgCOD.m^-3"}
+  X_I:    {value: 2.0, units: "kgCOD.m^-3"}
+
+  # Ions
+  S_cation: {value: 0.07, units: "M"}
+  S_anion:  {value: 0.03, units: "M"}

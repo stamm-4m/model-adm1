@@ -1,0 +1,13 @@
+description: >
+  Linear regression replacement for carbohydrate hydrolysis Rho_2,
+  fitted on synthetic data (X_ch, T_op, pH) via np.linalg.lstsq.
+target: Rho_2
+backend: linear_lstsq
+artefact: rho2_lr_synthetic.npz
+inputs: [X_ch, T_op, pH]
+metrics:
+  created_at: '2026-04-28T10:37:09+00:00'
+  training_data: synthetic
+  training_size: 2000
+  ground_truth: k_hyd_ch * X_ch * T_factor(T_op) * pH_factor(pH)
+  coeffs_order: [intercept, X_ch, T_op_K, pH]

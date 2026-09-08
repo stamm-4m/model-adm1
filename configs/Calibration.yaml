@@ -1,0 +1,101 @@
+# Configuration/Calibration
+# Calibration
+
+# Author: Bonal Margaux
+# Email: margaux.bonal@inrae.fr
+# Date: 09/04/2026
+
+# ============================================================
+# ADM1 calibration configuration
+# ============================================================
+# This file defines the model calibration framework.
+# It explicitly separates fixed parameters (adm1_parameters.yaml)
+# from the adjustable parameters listed here.
+# ============================================================
+
+# ------ Optimisation method ------
+optimization:
+  method: "differential_evolution"   # Alternatives: "Nelder-Mead", "L-BFGS-B", "PSO"
+  max_iterations: 500
+  tolerance: 1.0e-6
+  seed: 42                            # Random seed for reproducibility
+
+# ------ Objective function ------
+objective_function:
+  type: "RMSE"                        # Alternatives: "MSE", "MAE", "NSE"
+  weights:                            # Relative weighting of observed outputs
+    S_ac: 1.0
+    S_pro: 1.0
+    S_gas_ch4: 2.0                    # Methane weighted more heavily
+    pH: 1.5
+
+# ------ Observed variables (experimental data) ------
+observed_outputs:
+  file_path: "configs/calibration/observations.csv"
+  time_column: "time"
+  variables:
+    - S_ac       # Acetate                [kgCOD.m^-3]
+    - S_pro      # Propionate             [kgCOD.m^-3]
+    - S_gas_ch4  # Gas-phase methane      [bar]
+    - pH         # pH                     [-]
+
+# ------ Free parameters to calibrate ------
+# For each parameter: initial value, lower/upper bounds
+free_parameters:
+
+  k_m_ac:
+    initial: 8.0
+    min: 2.0
+    max: 20.0
+    units: "d^-1"
+    description: "Maximum uptake rate for acetate"
+
+  K_S_ac:
+    initial: 0.15
+    min: 0.05
+    max: 0.5
+    units: "kgCOD.m^-3"
+    description: "Half-saturation constant for acetate"
+
+  k_m_pro:
+    initial: 13.0
+    min: 4.0
+    max: 30.0
+    units: "d^-1"
+    description: "Maximum uptake rate for propionate"
+
+  K_I_nh3:
+    initial: 0.0018
+    min: 0.0005
+    max: 0.005
+    units: "M"
+    description: "Inhibition constant for free ammonia"
+
+  k_dec_X_ac:
+    initial: 0.02
+    min: 0.005
+    max: 0.05
+    units: "d^-1"
+    description: "Acetate-biomass decay rate"
+
+# ------ Calibration steps ------
+# Allows a sequential calibration by process group
+steps:
+  - name: "hydrolysis"
+    description: "Calibration of hydrolysis parameters"
+    parameters: []   # Not implemented in this example
+    active: false
+
+  - name: "methanogenesis"
+    description: "Calibration of acetoclastic methanogenesis"
+    parameters:
+      - k_m_ac
+      - K_S_ac
+      - k_dec_X_ac
+    active: true
+
+  - name: "inhibition"
+    description: "Calibration of inhibition parameters"
+    parameters:
+      - K_I_nh3
+    active: true
