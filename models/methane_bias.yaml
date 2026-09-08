@@ -1,7 +1,0 @@
-description: >
-  Constant additive bias on dS_ch4/dt — minimal demonstration of a Tier-2
-  residual correction (UDE-style). Replace with a learned correction in
-  practice.
-target: residual:S_ch4
-backend: callable
-artefact: examples/hybrid_residual_example.py:methane_bias_correction

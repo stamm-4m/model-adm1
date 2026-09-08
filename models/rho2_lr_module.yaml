@@ -1,8 +1,0 @@
-description: >
-  Same linear-regression replacement for Rho_2 as `rho2_lr_synthetic`, but
-  loaded as a Python callable (the regression is fitted at module import
-  time). Useful to A/B against `rho2_lr_synthetic` — same prediction, two
-  different load paths.
-target: Rho_2
-backend: callable
-artefact: examples/hybrid_linear_regression_example.py:carbohydrate_hydrolysis_lr

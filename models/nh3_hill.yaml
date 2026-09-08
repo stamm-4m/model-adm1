@@ -1,6 +1,0 @@
-description: >
-  Hill-style free-ammonia inhibition (I_nh3) with tunable exponent n.
-  Replaces the classical non-competitive form 1 / (1 + S_nh3/K_I).
-target: I_nh3
-backend: callable
-artefact: examples/hybrid_inhibition_example.py:hill_nh3_inhibition
