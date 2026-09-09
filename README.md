@@ -4,8 +4,8 @@ A modular Python implementation of **ADM1** (Batstone et al., 2002) in its BSM2 
 (Rosen & Jeppsson, 2006), refactored from [PyADM1](https://github.com/CaptainFerMag/PyADM1),
 configured entirely through YAML, and with optional plug points for ML models (hybrid mode).
 
-**Validated:** reproduces the MATLAB/Simulink BSM2 reference to ≤ 0.04 % on all 38 state
-variables (see [docs/validation.md](docs/validation.md)).
+**Validated:** reproduces the published BSM2 steady state to 8·10⁻⁷ (PyADM1: 2·10⁻⁵) and the
+MATLAB/Simulink BSM2 dynamic trajectory to ≤ 0.04 % on all 38 states (see [docs/validation.md](docs/validation.md)).
 
 **Authors:** Margaux Bonal — <margaux.bonal@inrae.fr> · David Camilo Corrales — <David-Camilo.Corrales-Munoz@inrae.fr> (INRAE / TBI)
 
@@ -75,25 +75,29 @@ then combine them in a new scenario block:
     parameter_overrides: {q_ad: {value: 120.0}}
 ```
 
-Provided scenarios: `BSM2_dynamic` (default), `BSM2_ringtest`, `BSM2_ringtest_15min`,
+Provided scenarios: `BSM2_dynamic` (default), `BSM2_steady_state`, `BSM2_ringtest`, `BSM2_ringtest_15min`,
 `BSM2_constant`, `thermophilic`, `batch_validation`, `pig_slurry_test`, and three `hybrid_*` demos
 (not pure ADM1). Everything above in detail — templates, pitfalls, units, workflows — is in
 **[docs/user_manual.md](docs/user_manual.md)**.
 
 ## 4. Validate
 
-The model is verified with the **BSM2 ring test**: the same 280-day dynamic influent is run
-through the reference MATLAB/Simulink BSM2 implementation (`tests/data/Matlabout_dyn.csv`) and
-through this code, and all 38 states are compared.
+Two BSM2 benchmarks (Rosen & Jeppsson 2006), the same ones PyADM1 was validated with:
 
 ```bash
-python main.py                                     # active_scenario: BSM2_dynamic
-python tests/benchmark_bsm2.py --results results/dynamic_out.csv \
-       --reference tests/data/Matlabout_dyn.csv --outdir results/benchmark
+# A. steady-state test (2 s): final state vs the published BSM2 steady state, 38 states, 14 digits
+#    configs/Scenario.yaml → active_scenario : BSM2_steady_state
+python main.py
+python tests/benchmark_bsm2_steady.py --results results/dynamic_out.csv        # → max |err| 8e-7, PASS
+
+# B. dynamic ring test (2 min): 280 d of BSM2 influent vs the MATLAB/Simulink trajectory
+#    configs/Scenario.yaml → active_scenario : BSM2_ringtest   (or BSM2_ringtest_15min, 50 min, exact)
+python main.py
+python tests/benchmark_bsm2.py --dynamic-q --results results/dynamic_out.csv \
+       --reference tests/data/Matlabout_dyn.csv --outdir results/benchmark      # → PASS
 ```
 
-→ `VERDICT: PASS` plus a table, a Markdown summary and an overlay plot in `results/benchmark/`.
-Run it after any change to `src/`; exit code ≠ 0 means the equations changed.
+Run both after any change to `src/`; a non-zero exit code means the equations changed.
 Protocol, metrics and expected numbers: [docs/validation.md](docs/validation.md).
 
 ## 5. Hybrid mode (optional)
@@ -118,7 +122,7 @@ model-adm1/
 ├── models/                  hybrid-model registry (one YAML per model)
 ├── examples/                hybrid plug-in examples
 ├── plots/                   diagnostic figures
-├── tests/                   benchmark_bsm2.py + data/ (MATLAB BSM2 reference, PyADM1 ring test)
+├── tests/                   benchmark_bsm2.py · benchmark_bsm2_steady.py · data/ (BSM2 references)
 ├── results/                 outputs
 └── docs/                    documentation — start at docs/README.md
 ```

@@ -38,7 +38,8 @@ scenarios:
     initial_states: BSM2                # key in Initial_states.yaml
     influent_mode: dynamic              # key in Influent.yaml
     T_op: {value: 308.15, units: "K"}   # operating temperature (Henry & acid-base constants follow it)
-    parameter_overrides: {}             # any name from adm1_parameters.yaml, e.g. k_m_ac: {value: 10}
+    parameter_overrides: {}             # any name from adm1_parameters.yaml, e.g. q_ad: {value: 170}
+    # t_end: 200                        # optional: scenario-level horizon [d], overrides Simulation.yaml
 ```
 
 Provided scenarios:
@@ -46,9 +47,10 @@ Provided scenarios:
 | scenario | start state | feed | notes |
 |---|---|---|---|
 | `BSM2_dynamic` | BSM2 | daily BSM2 feed, constant q_ad | default; PyADM1-identical; ~2 min |
+| `BSM2_steady_state` | BSM2_steady_init | constant BSM2 feed, q_ad 170 | benchmark A (steady state, 200 d); 2 s |
 | `BSM2_ringtest` | BSM2 | daily BSM2 feed, **dynamic Q** | validation vs MATLAB; ~2 min |
 | `BSM2_ringtest_15min` | BSM2 | 15-min BSM2 feed, dynamic Q | exact MATLAB reproduction; ~50 min |
-| `BSM2_constant` | BSM2 | constant mean feed | steady-state runs |
+| `BSM2_constant` | BSM2 | constant BSM2 feed | free steady-state runs |
 | `thermophilic` | BSM2 | daily feed | T_op 328 K + K_I_nh3 override |
 | `batch_validation` | BSM2 | constant, q_ad = 0 | batch kinetics |
 | `pig_slurry_test` | BSM2 | constant pig slurry, q_ad = 35 | example of a custom feed |
@@ -131,12 +133,13 @@ Figures: `results/figures/biogas.png`, `biomass.png`, `pH_alkalinity.png`.
 
 ## 7. Validate (do this after any change to `src/`)
 ```bash
-python main.py                                    # active_scenario: BSM2_dynamic
-python tests/benchmark_bsm2.py --results results/dynamic_out.csv \
+# A. steady state (2 s)   — active_scenario: BSM2_steady_state
+python main.py && python tests/benchmark_bsm2_steady.py --results results/dynamic_out.csv
+# B. dynamic ring test    — active_scenario: BSM2_ringtest (add --dynamic-q) or BSM2_dynamic
+python main.py && python tests/benchmark_bsm2.py --results results/dynamic_out.csv \
        --reference tests/data/Matlabout_dyn.csv --outdir results/benchmark
 ```
-`VERDICT: PASS` = still equivalent to the MATLAB BSM2 reference. Add `--dynamic-q` for the
-`BSM2_ringtest*` scenarios. See `docs/validation.md`.
+`VERDICT: PASS` on both = still equivalent to the BSM2 references. See `docs/validation.md`.
 
 ## 8. Typical workflows
 * **New feedstock, same digester:** add a block in `Influent.yaml` → scenario with

@@ -73,98 +73,43 @@ dynamic_Q:
   flow_column: "Q"
   time_units: "d"
 
-# ------ Constant mode ------ All variables must be defined
+# ------ Constant mode: BSM2 steady-state digester influent ------
+# Exactly the "Influent" column of Rosen & Jeppsson (2006) / PyADM1 paper Tables 2-4.
+# Used by the BSM2_steady_state scenario; with q_ad = 178.4674 m3/d and 200 d the digester
+# converges to the BSM2 steady state listed in tests/data/bsm2_steady_state.csv.
 constant:
-  description: "Constant influent — BSM2 mean values (Rosen et al., 2006)"
+  description: "Constant influent - BSM2 steady-state digester feed (Rosen et al., 2006)"
   type: constant
-  pH:
-    value: 7.2
-    units: "-"
-  # Flow rate
-  q_ad:
-    value: 178.4674
-    units: "m^3.d^-1"
+  # (no pH key: S_cation/S_anion are given explicitly by BSM2)
   # Soluble variables
-  S_su:
-    value: 0.01
-    units: "kgCOD.m^-3"
-  S_aa:
-    value: 0.001
-    units: "kgCOD.m^-3"
-  S_fa:
-    value: 0.001
-    units: "kgCOD.m^-3"
-  S_va:
-    value: 0.001
-    units: "kgCOD.m^-3"
-  S_bu:
-    value: 0.001
-    units: "kgCOD.m^-3"
-  S_pro:
-    value: 0.001
-    units: "kgCOD.m^-3"
-  S_ac:
-    value: 0.001
-    units: "kgCOD.m^-3"
-  S_h2:
-    value: 1.0e-8
-    units: "kgCOD.m^-3"
-  S_ch4:
-    value: 1.0e-5
-    units: "kgCOD.m^-3"
-  S_IC:
-    value: 0.04
-    units: "kmol C.m^-3"
-  S_IN:
-    value: 0.01
-    units: "kmol N.m^-3"
-  S_I:
-    value: 0.02
-    units: "kgCOD.m^-3"
+  S_su:  {value: 0.01,   units: "kgCOD.m^-3"}
+  S_aa:  {value: 0.001,  units: "kgCOD.m^-3"}
+  S_fa:  {value: 0.001,  units: "kgCOD.m^-3"}
+  S_va:  {value: 0.001,  units: "kgCOD.m^-3"}
+  S_bu:  {value: 0.001,  units: "kgCOD.m^-3"}
+  S_pro: {value: 0.001,  units: "kgCOD.m^-3"}
+  S_ac:  {value: 0.001,  units: "kgCOD.m^-3"}
+  S_h2:  {value: 1.0e-8, units: "kgCOD.m^-3"}
+  S_ch4: {value: 1.0e-5, units: "kgCOD.m^-3"}
+  S_IC:  {value: 0.04,   units: "kmol C.m^-3"}
+  S_IN:  {value: 0.01,   units: "kmol N.m^-3"}
+  S_I:   {value: 0.02,   units: "kgCOD.m^-3"}
   # Particulate variables
-  X_xc:
-    value: 2.0
-    units: "kgCOD.m^-3"
-  X_ch:
-    value: 0.5
-    units: "kgCOD.m^-3"
-  X_pr:
-    value: 0.5
-    units: "kgCOD.m^-3"
-  X_li:
-    value: 0.4
-    units: "kgCOD.m^-3"
-  X_su:
-    value: 0.0
-    units: "kgCOD.m^-3"
-  X_aa:
-    value: 0.0
-    units: "kgCOD.m^-3"
-  X_fa:
-    value: 0.0
-    units: "kgCOD.m^-3"
-  X_c4:
-    value: 0.0
-    units: "kgCOD.m^-3"
-  X_pro:
-    value: 0.0
-    units: "kgCOD.m^-3"
-  X_ac:
-    value: 0.0
-    units: "kgCOD.m^-3"
-  X_h2:
-    value: 0.0
-    units: "kgCOD.m^-3"
-  X_I:
-    value: 0.0
-    units: "kgCOD.m^-3"
-  S_cation:
-    value: 0.04
-    units: "M"
-  S_anion:
-    value: 0.02
-    units: "M"
-
+  X_xc:  {value: 2.0,    units: "kgCOD.m^-3"}
+  X_ch:  {value: 5.0,    units: "kgCOD.m^-3"}
+  X_pr:  {value: 20.0,   units: "kgCOD.m^-3"}
+  X_li:  {value: 5.0,    units: "kgCOD.m^-3"}
+  X_su:  {value: 0.0,    units: "kgCOD.m^-3"}
+  X_aa:  {value: 0.01,   units: "kgCOD.m^-3"}
+  X_fa:  {value: 0.01,   units: "kgCOD.m^-3"}
+  X_c4:  {value: 0.01,   units: "kgCOD.m^-3"}
+  X_pro: {value: 0.01,   units: "kgCOD.m^-3"}
+  X_ac:  {value: 0.01,   units: "kgCOD.m^-3"}
+  X_h2:  {value: 0.01,   units: "kgCOD.m^-3"}
+  X_I:   {value: 25.0,   units: "kgCOD.m^-3"}
+  # Ions
+  S_cation: {value: 0.04, units: "kmol.m^-3"}
+  S_anion:  {value: 0.02, units: "kmol.m^-3"}
 
 
 # ------ New influent: pig slurry (high-nitrogen load) ------

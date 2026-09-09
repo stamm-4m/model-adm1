@@ -203,6 +203,11 @@ def main():
     t_start = safe_float(time_cfg.get("t_start", 0), 0)
 
     t_end_cfg = time_cfg.get("t_end", None)
+    # a scenario may fix its own horizon (e.g. the BSM2 steady-state test: 200 d)
+    _scn = load_yaml_file(SCENARIO_FILE)
+    _scn_t_end = _scn.get("scenarios", {}).get(_scn.get("active_scenario"), {}).get("t_end", None)
+    if _scn_t_end is not None:
+        t_end_cfg = _scn_t_end
 
     if t_end_cfg is not None:
         t_end = safe_float(t_end_cfg, 365.0)
@@ -421,6 +426,17 @@ def main():
     # integrator at every influent step (as PyADM1 does) is the correct way to handle the
     # discontinuities; a single solve_ivp with the feed switched inside the RHS is only
     # acceptable when the feed step is >= max_step. Controlled by solver.piecewise (default true).
+    # GUARD 1: the system is stiff (S_h2 is integrated). Explicit solvers (RK45, DOP853, RK23)
+    # become unstable at the 15-min BSM2 feed step: S_h2 turns negative, H2 inhibition explodes,
+    # methanogens wash out and pH collapses — silently, without a solver error.
+    _method = str(solver_cfg.get("method", "BDF"))
+    if _method.upper() in ("RK45", "RK23", "DOP853") and not bool(solver_cfg.get("allow_explicit", False)):
+        raise SystemExit(
+            f"solver.method = '{_method}' is an explicit integrator; this ADM1 formulation is stiff and "
+            "explicit methods give wrong results (negative concentrations). Use 'BDF' (default), 'Radau' or "
+            "'LSODA'. Set solver.allow_explicit: true in Simulation.yaml to override at your own risk."
+        )
+
     solver_kwargs = dict(
         method=solver_cfg.get("method", "BDF"),
         rtol=solver_cfg.get("rtol", 1e-5),
@@ -474,6 +490,18 @@ def main():
 
     if not sol.success:
         raise RuntimeError(f"Solver failure: {sol.message}")
+
+    # GUARD 2: concentrations must stay non-negative; a negative state means numerical failure.
+    _neg = np.min(sol.y)
+    if _neg < -1e-9:
+        idx = np.unravel_index(np.argmin(sol.y), sol.y.shape)
+        name = reactor.unpack_state(reactor.expand_dynamic_state(sol.y[:, 0]))  # names in order
+        dyn_names = [n for n in FULL_STATE_NAMES if n not in ("S_H_ion","S_va_ion","S_bu_ion","S_pro_ion","S_ac_ion","S_hco3_ion","S_co2","S_nh3","S_nh4_ion")]
+        print("\n" + "!" * 66)
+        print(f"  WARNING: negative concentration {dyn_names[idx[0]]} = {_neg:.3e} at t = {sol.t[idx[1]]:.3f} d.")
+        print("  The integration is numerically unstable — results are NOT valid.")
+        print("  Use an implicit solver (BDF/Radau/LSODA) and/or tighter rtol/atol.")
+        print("!" * 66 + "\n")
 
 
     # ============================================================

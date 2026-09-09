@@ -18,7 +18,7 @@
 # active_scenario: BSM2_dynamic
 # active_scenario: thermophilic
 # active_scenario: hybrid_demo     # see docs/hybrid.md and examples/
-active_scenario : BSM2_ringtest_15min
+active_scenario : BSM2_steady_state
 
 # ------ Scenario definitions ------
 scenarios:
@@ -60,6 +60,25 @@ scenarios:
       value: 308.15
       units: "K"
     parameter_overrides: {}
+
+  # --- BSM2 steady-state test (PyADM1 paper Tables 2-4; Rosen & Jeppsson 2006) ---
+  BSM2_steady_state:
+    description: >
+      Second BSM2 benchmark (Rosen & Jeppsson 2006 steady state; PyADM1 paper Tables 2-4):
+      constant BSM2 digester influent, q_ad = 170 m3/d, 200 d. The final state must equal
+      the published BSM2 steady state (tests/data/bsm2_steady_state.csv) to ~1e-6;
+      check with: python tests/benchmark_bsm2_steady.py --results results/dynamic_out.csv
+    initial_states: BSM2_steady_init
+    influent_mode: constant
+    t_end: 200                        # scenario-level horizon [d] (overrides Simulation.yaml)
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides:
+      q_ad:
+        value: 170.0
+        units: "m^3.d^-1"
+        description: "BSM2 steady-state digester feed flow (the dynamic file starts at 178.47)"
 
   # --- BSM2 scenario with constant influent ---
   BSM2_constant:
