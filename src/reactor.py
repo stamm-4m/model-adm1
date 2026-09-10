@@ -88,6 +88,25 @@ class ADM1Reactor:
 
         self._state_template = np.zeros(len(FULL_STATE_NAMES), dtype=float)
 
+        # ── Disintegration switch (configs/adm1_parameters.yaml → disintegration.use_xc) ──
+        # use_xc = 1 (default): classical ADM1/BSM2 — decay → X_xc → k_dis → X_ch/X_pr/X_li/X_I/S_I.
+        # use_xc = 0: Batstone et al. (2015) variant — no disintegration; decay is split directly
+        #   with the biomass fractions f_*_xb (default = f_*_xc, i.e. the RM_without_Xc convention).
+        #   The influent must then be characterised in X_ch/X_pr/X_li/X_I (X_xc_in = 0).
+        self.use_xc = bool(param.get("use_xc", 1.0))
+        self.f_sI_xb = float(param.get("f_sI_xb", param.f_sI_xc))
+        self.f_ch_xb = float(param.get("f_ch_xb", param.f_ch_xc))
+        self.f_pr_xb = float(param.get("f_pr_xb", param.f_pr_xc))
+        self.f_li_xb = float(param.get("f_li_xb", param.f_li_xc))
+        self.f_xI_xb = float(param.get("f_xI_xb", param.f_xI_xc))
+        if not self.use_xc:
+            fsum = self.f_sI_xb + self.f_ch_xb + self.f_pr_xb + self.f_li_xb + self.f_xI_xb
+            if abs(fsum - 1.0) > 1e-9:
+                raise ValueError(
+                    f"use_xc = 0 requires f_sI_xb + f_ch_xb + f_pr_xb + f_li_xb + f_xI_xb = 1 (got {fsum:.6f}); "
+                    "otherwise COD is not conserved in biomass decay."
+                )
+
         # ── Hybrid hooks (Tier 1 + Tier 2). Empty = pure classical ADM1. ──
         # Tier 1 — replace a single process rate Rho_X.
         #   Signature: rate_overrides[name](state: dict, inhib: dict, param) -> float
@@ -345,7 +364,10 @@ class ADM1Reactor:
         I_11 = inhib["I_11"]
         I_12 = inhib["I_12"]
 
-        Rho_1 = p.k_dis * X_xc
+        # Disintegration switch (Batstone et al. 2015 "no X_c" variant): with use_xc = 0 the
+        # composite state X_xc is never disintegrated (it only enters/leaves hydraulically) and
+        # biomass decay is routed straight to X_ch/X_pr/X_li/X_I/S_I in mass_balances().
+        Rho_1 = p.k_dis * X_xc if self.use_xc else 0.0
         Rho_2 = p.k_hyd_ch * X_ch
         Rho_3 = p.k_hyd_pr * X_pr
         Rho_4 = p.k_hyd_li * X_li
@@ -561,7 +583,24 @@ class ADM1Reactor:
         # in CH4 and newly formed biomass.
         s_12 = (1 - p.Y_h2) * p.C_ch4 + p.Y_h2 * p.C_bac
 
-        s_13 = -p.C_bac + p.C_xc
+        # ── Biomass decay routing (see __init__: use_xc) ──
+        # use_xc = 1: decay → X_xc (s_13 = −C_bac + C_xc ; N: N_bac − N_xc)            [BSM2]
+        # use_xc = 0: decay → f_*_xb · (S_I, X_ch, X_pr, X_li, X_I) directly; the C and N
+        #             coefficients are the composition of that mixture so both balances close.
+        Sigma_dec = Rho_13 + Rho_14 + Rho_15 + Rho_16 + Rho_17 + Rho_18 + Rho_19
+        if self.use_xc:
+            decay_to_xc = Sigma_dec
+            decay_direct = 0.0
+            s_13 = -p.C_bac + p.C_xc
+            n_dec = p.N_bac - p.N_xc
+        else:
+            decay_to_xc = 0.0
+            decay_direct = Sigma_dec
+            s_13 = -p.C_bac + (
+                self.f_sI_xb * p.C_sI + self.f_ch_xb * p.C_ch + self.f_pr_xb * p.C_pr
+                + self.f_li_xb * p.C_li + self.f_xI_xb * p.C_xI
+            )
+            n_dec = p.N_bac - (self.f_sI_xb * p.N_I + self.f_pr_xb * p.N_aa + self.f_xI_xb * p.N_I)
 
         Sigma = (
             s_1 * Rho_1
@@ -576,7 +615,7 @@ class ADM1Reactor:
             + s_10 * Rho_10
             + s_11 * Rho_11
             + s_12 * Rho_12
-            + s_13 * (Rho_13 + Rho_14 + Rho_15 + Rho_16 + Rho_17 + Rho_18 + Rho_19)
+            + s_13 * Sigma_dec
         )
 
         diff_S_IC = p.q_ad / p.V_liq * (S_IC_in - S_IC) - Sigma - Rho_T_10
@@ -591,14 +630,14 @@ class ADM1Reactor:
             - p.Y_pro * p.N_bac * Rho_10
             - p.Y_ac * p.N_bac * Rho_11
             - p.Y_h2 * p.N_bac * Rho_12
-            + (p.N_bac - p.N_xc) * (Rho_13 + Rho_14 + Rho_15 + Rho_16 + Rho_17 + Rho_18 + Rho_19)
+            + n_dec * Sigma_dec
         )
-        diff_S_I = p.q_ad / p.V_liq * (S_I_in - S_I) + p.f_sI_xc * Rho_1
+        diff_S_I = p.q_ad / p.V_liq * (S_I_in - S_I) + p.f_sI_xc * Rho_1 + self.f_sI_xb * decay_direct
 
-        diff_X_xc = p.q_ad / p.V_liq * (X_xc_in - X_xc) - Rho_1 + Rho_13 + Rho_14 + Rho_15 + Rho_16 + Rho_17 + Rho_18 + Rho_19
-        diff_X_ch = p.q_ad / p.V_liq * (X_ch_in - X_ch) + p.f_ch_xc * Rho_1 - Rho_2
-        diff_X_pr = p.q_ad / p.V_liq * (X_pr_in - X_pr) + p.f_pr_xc * Rho_1 - Rho_3
-        diff_X_li = p.q_ad / p.V_liq * (X_li_in - X_li) + p.f_li_xc * Rho_1 - Rho_4
+        diff_X_xc = p.q_ad / p.V_liq * (X_xc_in - X_xc) - Rho_1 + decay_to_xc
+        diff_X_ch = p.q_ad / p.V_liq * (X_ch_in - X_ch) + p.f_ch_xc * Rho_1 + self.f_ch_xb * decay_direct - Rho_2
+        diff_X_pr = p.q_ad / p.V_liq * (X_pr_in - X_pr) + p.f_pr_xc * Rho_1 + self.f_pr_xb * decay_direct - Rho_3
+        diff_X_li = p.q_ad / p.V_liq * (X_li_in - X_li) + p.f_li_xc * Rho_1 + self.f_li_xb * decay_direct - Rho_4
         diff_X_su = p.q_ad / p.V_liq * (X_su_in - X_su) + p.Y_su * Rho_5 - Rho_13
         diff_X_aa = p.q_ad / p.V_liq * (X_aa_in - X_aa) + p.Y_aa * Rho_6 - Rho_14
         diff_X_fa = p.q_ad / p.V_liq * (X_fa_in - X_fa) + p.Y_fa * Rho_7 - Rho_15
@@ -606,7 +645,7 @@ class ADM1Reactor:
         diff_X_pro = p.q_ad / p.V_liq * (X_pro_in - X_pro) + p.Y_pro * Rho_10 - Rho_17
         diff_X_ac = p.q_ad / p.V_liq * (X_ac_in - X_ac) + p.Y_ac * Rho_11 - Rho_18
         diff_X_h2 = p.q_ad / p.V_liq * (X_h2_in - X_h2) + p.Y_h2 * Rho_12 - Rho_19
-        diff_X_I = p.q_ad / p.V_liq * (X_I_in - X_I) + p.f_xI_xc * Rho_1
+        diff_X_I = p.q_ad / p.V_liq * (X_I_in - X_I) + p.f_xI_xc * Rho_1 + self.f_xI_xb * decay_direct
 
         diff_S_cation = p.q_ad / p.V_liq * (S_cation_in - S_cation)
         diff_S_anion = p.q_ad / p.V_liq * (S_anion_in - S_anion)

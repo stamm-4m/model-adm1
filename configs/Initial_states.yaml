@@ -228,3 +228,48 @@ BSM2_steady_init:
 #   description: "Minimal initial state — empty digester"
 #   S_su: {value: 0.01, units: "kgCOD.m^-3", description: "Monosaccharides"}
 #   ...
+
+
+# ------ Tatiana's lab digester (5 L) start state ------
+# Source: y0 of RM_without_Xc/ADM1.ipynb. Ion states are recomputed from the charge balance at
+# start-up (S_cation/S_anion set the pH). VFA ion values below are in kgCOD.m^-3 as in the source.
+Tatiana_lab_5L:
+  description: "Tatiana lab digester 5 L - start state of the RM_without_Xc notebook (39 C, day 0 = 2023-03-15)"
+  S_su:      {value: 0.005064330136778, units: "kgCOD.m^-3"}
+  S_aa:      {value: 0.002267657417975, units: "kgCOD.m^-3"}
+  S_fa:      {value: 0.039745579177836, units: "kgCOD.m^-3"}
+  S_va:      {value: 0.004781384937714, units: "kgCOD.m^-3"}
+  S_bu:      {value: 0.009546166645872, units: "kgCOD.m^-3"}
+  S_pro:     {value: 0.060320136676456, units: "kgCOD.m^-3"}
+  S_ac:      {value: 0.195838718470725, units: "kgCOD.m^-3"}
+  S_h2:      {value: 4.35643495e-7,     units: "kgCOD.m^-3"}
+  S_ch4:     {value: 0.040387019669682, units: "kgCOD.m^-3"}
+  S_IC:      {value: 0.088760488491645, units: "kmol C.m^-3"}
+  S_IN:      {value: 0.086502521528236, units: "kmol N.m^-3"}
+  S_I:       {value: 1.543650531797525, units: "kgCOD.m^-3"}
+  X_xc:      {value: 0.0,               units: "kgCOD.m^-3"}
+  X_ch:      {value: 3.109339792889835, units: "kgCOD.m^-3"}
+  X_pr:      {value: 0.383675688579439, units: "kgCOD.m^-3"}
+  X_li:      {value: 0.400397649270999, units: "kgCOD.m^-3"}
+  X_su:      {value: 3.295748592314258, units: "kgCOD.m^-3"}
+  X_aa:      {value: 0.528944367719720, units: "kgCOD.m^-3"}
+  X_fa:      {value: 0.294597293607311, units: "kgCOD.m^-3"}
+  X_c4:      {value: 0.409976340740416, units: "kgCOD.m^-3"}
+  X_pro:     {value: 0.421451334507323, units: "kgCOD.m^-3"}
+  X_ac:      {value: 1.521243215648293, units: "kgCOD.m^-3"}
+  X_h2:      {value: 0.777168942833516, units: "kgCOD.m^-3"}
+  X_I:       {value: 45.585198029349186, units: "kgCOD.m^-3"}
+  S_cation:  {value: 0.017526378973457, units: "kmol.m^-3"}
+  S_anion:   {value: 0.020847038597314, units: "kmol.m^-3"}
+  S_H_ion:   {value: 1.0e-8,            units: "kmol.m^-3"}   # recomputed at start-up
+  S_va_ion:  {value: 0.004756394986341, units: "kgCOD.m^-3"}  # recomputed at start-up
+  S_bu_ion:  {value: 0.009500642638628, units: "kgCOD.m^-3"}  # recomputed at start-up
+  S_pro_ion: {value: 0.059990096263201, units: "kgCOD.m^-3"}  # recomputed at start-up
+  S_ac_ion:  {value: 0.195024812296522, units: "kgCOD.m^-3"}  # recomputed at start-up
+  S_hco3_ion: {value: 0.077796243746863, units: "kmol.m^-3"}  # recomputed at start-up
+  S_co2:     {value: 0.010964244744782, units: "kmol.m^-3"}   # recomputed at start-up
+  S_nh3:     {value: 0.001720167772227, units: "kmol.m^-3"}   # recomputed at start-up
+  S_nh4_ion: {value: 0.084782353756009, units: "kmol.m^-3"}   # recomputed at start-up
+  S_gas_h2:  {value: 1.8311747102e-5,   units: "kgCOD.m^-3"}
+  S_gas_ch4: {value: 1.224612521622608, units: "kgCOD.m^-3"}
+  S_gas_co2: {value: 0.017133600121008, units: "kmol.m^-3"}

@@ -1,0 +1,8 @@
+tatiana_rm_sim_result.csv — reference trajectory for tests/compare_tatiana_rm.py
+
+Origin: output (sim_result.csv) of the independent ADM1 code "RM_without_Xc" (Tatiana's group; Python
+translation by Margaud Pérémé), run with its notebook defaults: parameters_dyn.txt, y0 of the notebook,
+193 days, 40 samples/day, T fixed at 35 C. Same model without composite X_c = our use_xc = 0.
+Columns: 35 ADM1 states in the RM naming (Xxc, Xch, S_cat, S_hva ... ; VFA ions in kgCOD/m3), Q_D, T_D,
+D1..D5 (D4 holds H+ written by the RM post-processing). The RM feed is applied one day early (CSV
+header bug in the notebook) — the comparison script shifts it back by one day.

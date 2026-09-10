@@ -104,6 +104,22 @@ use `parameter_overrides:` in the scenario instead, so the reference stays intac
 YAML values are the 35 °C reference only. The reactor geometry (`V_liq`, `V_gas`) and default
 `q_ad` live here too (override per scenario, e.g. `q_ad: {value: 35}`).
 
+### 4.3b Disintegration switch — with or without the composite `X_xc`
+`adm1_parameters.yaml → disintegration.use_xc` (override per scenario):
+
+| `use_xc` | Feed characterised as | Biomass decay goes to | Reference |
+|---|---|---|---|
+| `1` (default) | `X_xc` (composite) + `k_dis` disintegration | `X_xc` → `k_dis` → `X_ch/X_pr/X_li/X_I/S_I` | ADM1 2002 / BSM2 — the validated set-up |
+| `0` | `X_ch / X_pr / X_li / X_I` directly (`X_xc = 0`) | `f_*_xb` · (`S_I, X_ch, X_pr, X_li, X_I`) directly | Batstone et al. 2015 (no composite) |
+
+Use `0` when the feed composition is measured (carbohydrates / proteins / lipids) and you calibrate
+hydrolysis: with `X_xc` in the chain, `k_dis` and `k_hyd_*` are two first-order steps in series and are
+not separately identifiable. With `0`, `X_xc` is still in the state vector but never reacts (it is
+transported hydraulically only), so **keep `X_xc = 0` in the feed** or that COD is lost as inert.
+The decay fractions `f_*_xb` default to `f_*_xc` (the convention of the RM_without_Xc code); they
+must sum to 1 (checked at start-up). With `use_xc: 1` the equations reduce exactly to the validated
+ones (`tests/test_xc_flag.py`). Scenarios: `no_xc_demo`, `Tatiana_RM_lab_5L`.
+
 ### 4.4 ML plug-ins — `models/*.yaml` (optional)
 ```yaml
 target: I_nh3                                   # or Rho_11, Rho_2, …, or residual
@@ -141,10 +157,21 @@ python main.py && python tests/benchmark_bsm2.py --results results/dynamic_out.c
 ```
 `VERDICT: PASS` on both = still equivalent to the BSM2 references. See `docs/validation.md`.
 
+### 7b. Cross-test of the no-composite variant (Tatiana's 5 L digester)
+```bash
+# configs/Scenario.yaml → active_scenario : Tatiana_RM_lab_5L        (~1 min)
+python main.py
+python tests/compare_tatiana_rm.py --results results/dynamic_out.csv   # → PASS (|avg| ≤ 1 %, nRMSE ≤ 6 %)
+```
+Compares 193 d of the 5 L lab digester (daily feed, dynamic flow, feed in X_ch/X_pr/X_li/X_I,
+calibrated kinetics) with the trajectory of the independent RM_without_Xc code. See `docs/validation.md`.
+
 ## 8. Typical workflows
 * **New feedstock, same digester:** add a block in `Influent.yaml` → scenario with
   `initial_states: BSM2`, your `influent_mode`, `q_ad` override if the HRT changes → run.
 * **Temperature study:** duplicate a scenario, change `T_op` (constants follow automatically).
+* **Measured feed composition / solid substrate:** set `use_xc: 0` in `parameter_overrides`, put the
+  feed in `X_ch/X_pr/X_li/X_I` with `X_xc = 0` (§4.3b), calibrate `k_hyd_*` — see `Tatiana_RM_lab_5L`.
 * **Calibration:** keep `adm1_parameters.yaml` fixed; put the free parameters in
   `parameter_overrides`; `configs/Calibration.yaml` documents bounds/objective (framework only,
   no optimiser is wired yet).

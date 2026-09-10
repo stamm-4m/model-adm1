@@ -197,6 +197,41 @@ stoichiometric_parameters:
     units: "-"
     description: "Yield coefficient for hydrogen"
 
+# ------ Disintegration switch (X_c on/off) ------
+# use_xc = 1 : classical ADM1 / BSM2 (validated): influent composite X_xc is disintegrated with
+#              k_dis, and biomass decay goes back to X_xc.
+# use_xc = 0 : Batstone et al. (2015) variant without composite: no disintegration (X_xc is
+#              hydraulically transported but never reacts) and biomass decay is split directly
+#              into S_I / X_ch / X_pr / X_li / X_I with the fractions f_*_xb below.
+#              The influent must then be characterised in X_ch / X_pr / X_li / X_I (X_xc = 0).
+# The f_*_xb defaults equal f_*_xc (the RM_without_Xc convention); Batstone (2015) recommends
+# biomass-specific values — override them per scenario. They must sum to 1.
+disintegration:
+  use_xc:
+    value: 1
+    units: "-"
+    description: "1 = with composite X_xc and disintegration (BSM2); 0 = without (Batstone 2015)"
+  f_sI_xb:
+    value: 0.1
+    units: "-"
+    description: "Soluble-inert fraction of decayed biomass (use_xc = 0 only)"
+  f_ch_xb:
+    value: 0.2
+    units: "-"
+    description: "Carbohydrate fraction of decayed biomass (use_xc = 0 only)"
+  f_pr_xb:
+    value: 0.2
+    units: "-"
+    description: "Protein fraction of decayed biomass (use_xc = 0 only)"
+  f_li_xb:
+    value: 0.3
+    units: "-"
+    description: "Lipid fraction of decayed biomass (use_xc = 0 only)"
+  f_xI_xb:
+    value: 0.2
+    units: "-"
+    description: "Particulate-inert fraction of decayed biomass (use_xc = 0 only)"
+
 # ------ Biochemical and kinetic parameters ------
 biochemical_parameters:
   k_dis:

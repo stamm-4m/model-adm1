@@ -18,6 +18,8 @@
 # active_scenario: BSM2_dynamic
 # active_scenario: thermophilic
 # active_scenario: hybrid_demo     # see docs/hybrid.md and examples/
+# active_scenario: no_xc_demo             # BSM2 without X_c (use_xc = 0)
+# active_scenario: Tatiana_RM_lab_5L      # Tatiana's 5 L digester, cross-test with RM_without_Xc
 active_scenario : BSM2_steady_state
 
 # ------ Scenario definitions ------
@@ -195,3 +197,81 @@ scenarios:
         value: 35.0
         units: "m^3.d^-1"
         description: "Reduced flow for a stable start-up on pig slurry"
+
+  # ============================================================
+  # Scenarios without composite X_c (use_xc = 0, Batstone et al. 2015)
+  # ============================================================
+
+  # --- BSM2 without X_c: same digester, influent re-characterised in X_ch/X_pr/X_li/X_I ---
+  no_xc_demo:
+    description: >
+      BSM2 constant feed with the disintegration step switched off (use_xc = 0). The composite
+      X_xc of the feed is redistributed with f_*_xc into X_ch/X_pr/X_li/X_I/S_I (influent
+      'constant_no_xc'). Compare with BSM2_constant to see the effect of removing X_c.
+    initial_states: BSM2
+    influent_mode: constant_no_xc
+    T_op:
+      value: 308.15
+      units: "K"
+    parameter_overrides:
+      use_xc:
+        value: 0
+        units: "-"
+        description: "Disintegration off; decay split with f_*_xb"
+
+  # --- Tatiana's lab digester (5 L) as in the RM_without_Xc code: cross-test of use_xc = 0 ---
+  Tatiana_RM_lab_5L:
+    description: >
+      Tatiana's 5 L lab digester, 193 d (from 2023-03-15), daily feed with dynamic flow, feed
+      characterised in X_ch/X_pr/X_li/X_I, calibrated kinetics of RM_without_Xc/parameters_dyn.txt.
+      Reproduces the RM_without_Xc notebook run AS IS (T_op fixed at 35 C although the data are
+      at 39 C - that is what the original code does). Cross-test:
+      python tests/compare_tatiana_rm.py --results results/dynamic_out.csv
+    initial_states: Tatiana_lab_5L
+    influent_mode: tatiana_lab_5L
+    t_end: 193
+    T_op:
+      value: 308.15
+      units: "K"
+      description: "35 C as hard-coded in the original code (data are at 39 C)"
+    parameter_overrides:
+      use_xc:    {value: 0,        units: "-",          description: "No disintegration (RM_without_Xc)"}
+      V_liq:     {value: 0.005,    units: "m^3",        description: "5 L liquid volume"}
+      V_gas:     {value: 0.002,    units: "m^3",        description: "2 L headspace"}
+      k_p:       {value: 5.0,      units: "m^3.d^-1.bar^-1", description: "Gas outlet friction scaled to the 5 L reactor (BSM2: 5e4 for 300 m3 headspace); keeps P_gas ~ P_atm as the RM gas law assumes"}
+      k_hyd_ch:  {value: 0.2350,   units: "d^-1",       description: "Calibrated (RM parameters_dyn.txt)"}
+      k_hyd_pr:  {value: 0.4006,   units: "d^-1",       description: "Calibrated"}
+      k_hyd_li:  {value: 0.31,     units: "d^-1",       description: "Calibrated"}
+      k_m_c4:    {value: 13.7,     units: "d^-1",       description: "Calibrated"}
+      k_m_pro:   {value: 5.5,      units: "d^-1",       description: "Calibrated"}
+      K_I_h2_pro: {value: 2.4864e-7, units: "kgCOD.m^-3", description: "Calibrated"}
+      k_m_ac:    {value: 5.0,      units: "d^-1",       description: "Calibrated"}
+      K_I_nh3:   {value: 4.7068e-4, units: "M",         description: "Calibrated"}
+      K_S_h2:    {value: 3.0e-5,   units: "kgCOD.m^-3", description: "Calibrated"}
+
+  # --- Same digester at its real temperature (39 C) ---
+  Tatiana_RM_lab_5L_39C:
+    description: >
+      Tatiana's 5 L lab digester at its measured operating temperature (39 C): Henry, K_a and
+      K_w constants follow T_op. Physically consistent version of Tatiana_RM_lab_5L.
+    initial_states: Tatiana_lab_5L
+    influent_mode: tatiana_lab_5L
+    t_end: 193
+    T_op:
+      value: 312.15
+      units: "K"
+      description: "39 C (measured)"
+    parameter_overrides:
+      use_xc:    {value: 0,        units: "-"}
+      V_liq:     {value: 0.005,    units: "m^3"}
+      V_gas:     {value: 0.002,    units: "m^3"}
+      k_p:       {value: 5.0,      units: "m^3.d^-1.bar^-1"}
+      k_hyd_ch:  {value: 0.2350,   units: "d^-1"}
+      k_hyd_pr:  {value: 0.4006,   units: "d^-1"}
+      k_hyd_li:  {value: 0.31,     units: "d^-1"}
+      k_m_c4:    {value: 13.7,     units: "d^-1"}
+      k_m_pro:   {value: 5.5,      units: "d^-1"}
+      K_I_h2_pro: {value: 2.4864e-7, units: "kgCOD.m^-3"}
+      k_m_ac:    {value: 5.0,      units: "d^-1"}
+      K_I_nh3:   {value: 4.7068e-4, units: "M"}
+      K_S_h2:    {value: 3.0e-5,   units: "kgCOD.m^-3"}

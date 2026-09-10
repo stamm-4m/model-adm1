@@ -149,3 +149,51 @@ pig_slurry:
   # Ions
   S_cation: {value: 0.07, units: "M"}
   S_anion:  {value: 0.03, units: "M"}
+
+
+# ------ Tatiana's lab digester (5 L), daily feed with dynamic flow ------
+# Source: RM_without_Xc/inputs/U_dyn_ref.csv (Tatiana; Python translation by M. Pérémé), 195 days,
+# one row per day (row i active on [i, i+1) d, as in the original code). Feed characterised
+# directly in X_ch / X_pr / X_li / X_I (X_xc = 0) -> to be used with use_xc = 0.
+# Q in m3/d (~1e-4 m3/d = 0.1 L/d on fed days; 0 on non-fed days). T column (39 C) is informative
+# only: the operating temperature is set by the scenario T_op.
+tatiana_lab_5L:
+  description: "Tatiana lab digester 5 L - daily feed, dynamic flow Q(t), influent in X_ch/X_pr/X_li/X_I"
+  type: dynamic
+  file_path: "configs/tatiana_lab_5L_influent.csv"
+  time_column: "time"
+  flow_column: "Q"
+  time_units: "d"
+
+
+# ------ BSM2 constant feed re-characterised without composite (for no_xc_demo) ------
+# Same COD as "constant": the 2.0 kgCOD/m3 of X_xc are split with f_*_xc into S_I/X_ch/X_pr/X_li/X_I.
+constant_no_xc:
+  description: "BSM2 steady-state feed without X_xc (composite redistributed with f_*_xc)"
+  type: constant
+  S_su:     {value: 0.01, units: "kgCOD.m^-3"}
+  S_aa:     {value: 0.001, units: "kgCOD.m^-3"}
+  S_fa:     {value: 0.001, units: "kgCOD.m^-3"}
+  S_va:     {value: 0.001, units: "kgCOD.m^-3"}
+  S_bu:     {value: 0.001, units: "kgCOD.m^-3"}
+  S_pro:    {value: 0.001, units: "kgCOD.m^-3"}
+  S_ac:     {value: 0.001, units: "kgCOD.m^-3"}
+  S_h2:     {value: 1e-08, units: "kgCOD.m^-3"}
+  S_ch4:    {value: 1e-05, units: "kgCOD.m^-3"}
+  S_IC:     {value: 0.04, units: "kmol C.m^-3"}
+  S_IN:     {value: 0.01, units: "kmol N.m^-3"}
+  S_I:      {value: 0.22, units: "kgCOD.m^-3"}
+  X_xc:     {value: 0.0, units: "kgCOD.m^-3"}
+  X_ch:     {value: 5.4, units: "kgCOD.m^-3"}
+  X_pr:     {value: 20.4, units: "kgCOD.m^-3"}
+  X_li:     {value: 5.6, units: "kgCOD.m^-3"}
+  X_su:     {value: 0.0, units: "kgCOD.m^-3"}
+  X_aa:     {value: 0.01, units: "kgCOD.m^-3"}
+  X_fa:     {value: 0.01, units: "kgCOD.m^-3"}
+  X_c4:     {value: 0.01, units: "kgCOD.m^-3"}
+  X_pro:    {value: 0.01, units: "kgCOD.m^-3"}
+  X_ac:     {value: 0.01, units: "kgCOD.m^-3"}
+  X_h2:     {value: 0.01, units: "kgCOD.m^-3"}
+  X_I:      {value: 25.4, units: "kgCOD.m^-3"}
+  S_cation: {value: 0.04, units: "kmol.m^-3"}
+  S_anion:  {value: 0.02, units: "kmol.m^-3"}

@@ -82,7 +82,32 @@ flow variations, not from the biochemistry; dynamic Q halves the dynamic error. 
 left with dynamic Q is due to `daily_averages.csv` averaging Q and concentrations
 separately (Q̄·C̄ ≠ mean(Q·C)); the `BSM2_ringtest_15min` scenario (≈ 50 min; with `dt_out: null` the output has the same 26 881 rows as the influent and the MATLAB file) reproduces MATLAB essentially exactly. Note the reference files are 15-min data with the feed row i held on [t_i, t_{i+1}).
 
+## C. Disintegration switch (`use_xc`) and cross-test with RM_without_Xc
+
+`python tests/test_xc_flag.py` (instantaneous) checks that (1) `use_xc: 1` gives the validated
+right-hand side to 1e-16, (2) `use_xc: 0` conserves COD, C and N in the reaction terms (residuals
+< 1e-15 on the BSM2 state and on a biomass-only state), (3) `f_*_xb` not summing to 1 is rejected.
+
+Cross-test with an independent implementation of the no-composite variant (the RM_without_Xc code
+of Tatiana's group, Python translation by M. Pérémé): 5 L lab digester, 193 d, daily feed with dynamic
+flow, feed in `X_ch/X_pr/X_li/X_I`, calibrated kinetics (`Tatiana_RM_lab_5L`, T_op = 35 °C as in that
+code). Reference: `tests/data/tatiana_rm_sim_result.csv`.
+
+```bash
+# configs/Scenario.yaml → active_scenario : Tatiana_RM_lab_5L
+python main.py                                                          # ~1 min
+python tests/compare_tatiana_rm.py --results results/dynamic_out.csv    # → PASS
+```
+Result (2026-09-10): 193-d averages within 1.0 % on all 27 states, pH within 0.002 units, daily
+nRMSE ≤ 6 % (VFAs 3–6 %, biomass ≤ 0.3 %, gas ≤ 3 %). The remaining differences are the gas-flow
+law (k_p overpressure vs. P_gas = P_atm), the acid-base formulation (algebraic vs. ion ODEs) and the
+integrator. Two things to know about the reference: the RM notebook consumes the first influent row
+as a CSV header, so its feed is one day early (the script shifts it back, `--rm-shift-days 1`), and
+it keeps T_op = 35 °C although the data are at 39 °C — `Tatiana_RM_lab_5L_39C` is the consistent
+version (free NH₃ +30 %, mean acetate 0.31 → 0.64 kgCOD/m³: the calibrated `K_I_nh3` belongs to the
+35 °C constants).
+
 ## Regression use (both tests)
 
-Any change to `src/` must keep the verdict PASS. For hybrid models, run the hybrid scenario
+Any change to `src/` must keep the verdict PASS (A, B and `tests/test_xc_flag.py`). For hybrid models, run the hybrid scenario
 with identity hooks: the benchmark table must be identical to `BSM2_dynamic`.

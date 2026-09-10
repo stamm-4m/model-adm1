@@ -85,6 +85,15 @@ the next stage's input:
 | 3 | **Acetogenesis** | The "long" VFAs (LCFA, valerate, butyrate, propionate) are oxidised into acetate + H₂. **Energetically very tight — only works if H₂ stays low.** | acetogens (`X_fa`, `X_c4`, `X_pro`) |
 | 4 | **Methanogenesis** | The final step. Two pathways in parallel: <br>• **acetoclastic**: CH₃COO⁻ → CH₄ + CO₂  <br>• **hydrogenotrophic**: 4 H₂ + CO₂ → CH₄ + 2 H₂O | methanogens (`X_ac`, `X_h2`) |
 
+> **Stage 0 is optional (`use_xc`).** The composite `X_xc` was introduced in ADM1 (2002) as a
+> convenience: one aggregated input split with fixed fractions `f_*_xc` — a feature-engineering
+> layer with frozen weights in front of the model. Batstone et al. (2015) recommend dropping it
+> when the feed composition is measured: two first-order steps in series (`k_dis`, then `k_hyd`)
+> are not separately identifiable from data, and dead biomass does not have the composition of
+> the feed. With `disintegration.use_xc: 0` this code skips stage 0: the feed enters as
+> `X_ch/X_pr/X_li/X_I` and decayed biomass is split directly with `f_*_xb`. `use_xc: 1` is the
+> classical, validated pipeline. See `docs/user_manual.md` §4.3b.
+
 A useful mental model: each stage is a **transformation function**, the
 microbes are **stateful workers**, and the H₂ partial pressure acts as a
 back-pressure signal coupling stage 3 to stage 4 (more on that below).
