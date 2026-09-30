@@ -29,6 +29,9 @@ Implementation notes (verified against PyADM1 and the BSM2 MATLAB reference, Sep
     solver (BDF / Radau / LSODA).
   - Rho_T_10 uses dissolved free CO2 (S_co2), and s_12 includes the inorganic-carbon sink of
     hydrogenotrophic methanogenesis — identical to PyADM1 and the BSM2 report.
+  - q_gas: BSM2 overpressure law k_p·(P_gas − P_atm) by default (no P_gas/P_atm factor inside the
+    ODEs, as in the MATLAB BSM2 code); gas_law_patm = 1 selects the head-space-at-P_atm law of
+    Batstone et al. (2002) / RM_without_Xc. See compute_gas_outputs for the flow conversions.
   - K_w, K_a_co2, K_a_IN are recomputed from T_op (van 't Hoff, BSM2 Table 3) in __init__,
     consistently with the Henry constants.
 """
@@ -106,6 +109,17 @@ class ADM1Reactor:
                     f"use_xc = 0 requires f_sI_xb + f_ch_xb + f_pr_xb + f_li_xb + f_xI_xb = 1 (got {fsum:.6f}); "
                     "otherwise COD is not conserved in biomass decay."
                 )
+
+        # ── Gas-flow law switch (configs/adm1_parameters.yaml → gas_flow.gas_law_patm) ──
+        # gas_law_patm = 0 (default): BSM2 overpressure law  q_gas = k_p·(P_gas − P_atm)
+        #   (Rosen & Jeppsson 2006; PyADM1; the MATLAB BSM2 ODEs). Validated.
+        # gas_law_patm = 1: headspace held at P_atm (Batstone et al. 2002, as in RM_without_Xc):
+        #   q_gas = R·T_op·V_liq·(ρT8/16 + ρT9/64 + ρT10) / (P_atm − p_H2O)
+        #   = all gas transferred to the headspace leaves instantly; k_p is not used.
+        #   It is the k_p → ∞ limit of the overpressure law (P_gas is driven to P_atm).
+        # In both cases q_gas is the WET gas flow at T_op and headspace pressure (see compute_gas_outputs
+        # for the flows at P_atm and in normal dry conditions).
+        self.gas_law_patm = bool(param.get("gas_law_patm", 0.0))
 
         # ── Hybrid hooks (Tier 1 + Tier 2). Empty = pure classical ADM1. ──
         # Tier 1 — replace a single process rate Rho_X.
@@ -278,15 +292,73 @@ class ADM1Reactor:
 
         return p_gas_h2, p_gas_ch4, p_gas_co2
 
-    def compute_gas_flow_rate(self, p_gas_h2, p_gas_ch4, p_gas_co2):
+    def compute_gas_flow_rate(self, p_gas_h2, p_gas_ch4, p_gas_co2, S_h2=None, S_ch4=None, S_co2=None):
+        """
+        Gas flow q_gas [m^3.d^-1] (wet gas, T_op, headspace pressure), vectorised, with the same law
+        as the ODE (see gas_law_patm). The P_atm law needs the liquid states S_h2, S_ch4, S_co2.
+        """
         p = self.param
 
         p_gas_h2 = np.asarray(p_gas_h2, dtype=float)
         p_gas_ch4 = np.asarray(p_gas_ch4, dtype=float)
         p_gas_co2 = np.asarray(p_gas_co2, dtype=float)
 
-        p_gas_total = p_gas_h2 + p_gas_ch4 + p_gas_co2 + self.p_gas_h2o
-        return np.maximum(0.0, p.k_p * (p_gas_total - p.p_atm))
+        if not self.gas_law_patm:
+            p_gas_total = p_gas_h2 + p_gas_ch4 + p_gas_co2 + self.p_gas_h2o
+            return np.maximum(0.0, p.k_p * (p_gas_total - p.p_atm))
+
+        if S_h2 is None or S_ch4 is None or S_co2 is None:
+            raise ValueError("gas_law_patm = 1: compute_gas_flow_rate needs S_h2, S_ch4 and S_co2.")
+        Rho_T_8, Rho_T_9, Rho_T_10 = self._gas_transfer_rates(
+            np.asarray(S_h2, dtype=float), np.asarray(S_ch4, dtype=float), np.asarray(S_co2, dtype=float),
+            p_gas_h2, p_gas_ch4, p_gas_co2,
+        )
+        return np.maximum(0.0, self._q_gas_patm(Rho_T_8, Rho_T_9, Rho_T_10))
+
+    def _gas_transfer_rates(self, S_h2, S_ch4, S_co2, p_gas_h2, p_gas_ch4, p_gas_co2):
+        """Liquid → gas transfer rates ρT8 (H2), ρT9 (CH4) [kgCOD.m^-3.d^-1], ρT10 (CO2) [kmolC.m^-3.d^-1]."""
+        p = self.param
+        Rho_T_8 = p.k_L_a * (S_h2 - 16 * self.K_H_h2 * p_gas_h2)
+        Rho_T_9 = p.k_L_a * (S_ch4 - 64 * self.K_H_ch4 * p_gas_ch4)
+        # BUG 1: use dissolved free CO2, not total inorganic carbon.
+        Rho_T_10 = p.k_L_a * (S_co2 - self.K_H_co2 * p_gas_co2)
+        return Rho_T_8, Rho_T_9, Rho_T_10
+
+    def _q_gas_patm(self, Rho_T_8, Rho_T_9, Rho_T_10):
+        """P_atm law (Batstone et al. 2002): all transferred gas leaves at P_atm, saturated with water."""
+        p = self.param
+        return p.R * p.T_op * p.V_liq * (Rho_T_8 / 16 + Rho_T_9 / 64 + Rho_T_10) / (p.p_atm - self.p_gas_h2o)
+
+    def compute_gas_outputs(self, df) -> dict:
+        """
+        Biogas outputs from a results table (columns S_gas_*, S_h2, S_ch4, S_co2). All flows in m^3.d^-1.
+
+          q_gas           wet gas at T_op and headspace pressure P_gas  (the flow used in the ODE)
+          q_gas_atm       wet gas at T_op and P_atm  = q_gas · P_gas / P_atm
+                          (this is the 'k_p (P_gas − P_atm) · P_gas/P_atm' of the BSM2 report)
+          q_gas_norm_dry  dry gas at 0 °C and 1.01325 bar = q_gas · (P_gas − p_H2O)/1.01325 · 273.15/T_op
+          q_ch4_norm_dry  dry CH4 at 0 °C and 1.01325 bar = q_gas · p_CH4/1.01325 · 273.15/T_op
+        (× 1e6 → mL/d; normal conditions are what lab gas counters usually report, NmL/d)
+        """
+        p = self.param
+        p_h2, p_ch4, p_co2 = self.gas_state_to_partial_pressures(
+            S_gas_h2=df["S_gas_h2"], S_gas_ch4=df["S_gas_ch4"], S_gas_co2=df["S_gas_co2"],
+        )
+        P_gas = p_h2 + p_ch4 + p_co2 + self.p_gas_h2o
+        q_gas = self.compute_gas_flow_rate(
+            p_h2, p_ch4, p_co2,
+            S_h2=df["S_h2"] if "S_h2" in df else None,
+            S_ch4=df["S_ch4"] if "S_ch4" in df else None,
+            S_co2=df["S_co2"] if "S_co2" in df else None,
+        )
+        to_normal = 273.15 / p.T_op / 1.01325
+        return {
+            "P_gas": P_gas,
+            "q_gas": q_gas,
+            "q_gas_atm": q_gas * P_gas / p.p_atm,
+            "q_gas_norm_dry": q_gas * (P_gas - self.p_gas_h2o) * to_normal,
+            "q_ch4_norm_dry": q_gas * p_ch4 * to_normal,
+        }
 
     def compute_inhibitions(self, state) -> dict:
         p = self.param
@@ -429,14 +501,17 @@ class ADM1Reactor:
         p_gas_ch4 = S_gas_ch4 * p.R * p.T_op / 64
         p_gas_co2 = S_gas_co2 * p.R * p.T_op
 
-        p_gas_total = p_gas_h2 + p_gas_ch4 + p_gas_co2 + self.p_gas_h2o
-        q_gas = max(0.0, p.k_p * (p_gas_total - p.p_atm))
+        Rho_T_8, Rho_T_9, Rho_T_10 = self._gas_transfer_rates(
+            S_h2, S_ch4, S_co2, p_gas_h2, p_gas_ch4, p_gas_co2
+        )
 
-        Rho_T_8 = p.k_L_a * (S_h2 - 16 * self.K_H_h2 * p_gas_h2)
-        Rho_T_9 = p.k_L_a * (S_ch4 - 64 * self.K_H_ch4 * p_gas_ch4)
-
-        # BUG 1: use dissolved free CO2, not total inorganic carbon.
-        Rho_T_10 = p.k_L_a * (S_co2 - self.K_H_co2 * p_gas_co2)
+        if self.gas_law_patm:
+            # headspace at P_atm (Batstone 2002 / RM_without_Xc)
+            q_gas = max(0.0, self._q_gas_patm(Rho_T_8, Rho_T_9, Rho_T_10))
+        else:
+            # BSM2 overpressure law (validated against MATLAB BSM2: no P_gas/P_atm factor inside the ODE)
+            p_gas_total = p_gas_h2 + p_gas_ch4 + p_gas_co2 + self.p_gas_h2o
+            q_gas = max(0.0, p.k_p * (p_gas_total - p.p_atm))
 
         return {
             "q_gas": q_gas,

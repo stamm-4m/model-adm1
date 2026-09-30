@@ -48,6 +48,7 @@ classDiagram
         +param : ADM1Parameters
         +influent_state : dict
         +use_xc : bool
+        +gas_law_patm : bool
         +f_sI_xb f_ch_xb f_pr_xb f_li_xb f_xI_xb
         +K_H_co2 K_H_ch4 K_H_h2 p_gas_h2o
         +K_pH_aa nn_aa K_pH_ac n_ac K_pH_h2 n_h2
@@ -158,6 +159,9 @@ classDiagram
   (`reduce_to_dynamic_state` / `expand_dynamic_state` convert).
 * **`use_xc`** lives in `ADM1Parameters` (YAML) and is read once at reactor construction into
   `ADM1Reactor.use_xc`; it changes `Rho_1` and the decay routing in `mass_balances`.
+* **`gas_law_patm`** is read the same way into `ADM1Reactor.gas_law_patm`; it only changes `q_gas` in
+  `compute_gas_transfer` (and the same law in `compute_gas_flow_rate` / `compute_gas_outputs`, which
+  produce the `q_gas*` CSV columns and the biogas plot).
 * **Hybrid layer** = `registry` (reads `models/*.yaml` → `ModelEntry`) + `hybrid` (turns an entry into a
   Python callable and plugs it into `rate_overrides`, `inhibition_overrides` or `residual_correction`).
   With no `hybrid:` block in the scenario the reactor is pure ADM1.
