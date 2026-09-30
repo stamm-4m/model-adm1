@@ -358,7 +358,7 @@ def main():
         print(f"  Day {t_day:>6.1f} d   |   wall-clock: {elapsed_wall:>6.1f} s")
         print("─" * 62)
         print(f"  pH              : {summary.get('pH', float('nan')):8.3f}")
-        print(f"  Biogas flow     : {summary.get('q_gas', float('nan')):8.2f} m³/d")
+        print(f"  Biogas flow     : {summary.get('q_gas', float('nan')):10.4g} m³/d (wet, T_op, P_gas)")
         print(f"  P CH₄ (gas)     : {summary.get('p_gas_ch4_bar', float('nan')):8.4f} bar")
         print("  Inhibitions:")
         print(f"    pH acidogens     {summary.get('I_pH_aa', float('nan')):6.3f}  {flag_inhib(summary.get('I_pH_aa', 1.0))}")
@@ -533,6 +533,12 @@ def main():
 
     for col in cod_df.columns:
         df[col] = cod_df[col]
+
+    # Biogas flows [m^3.d^-1] (same q_gas law as the ODE; see ADM1Reactor.compute_gas_outputs):
+    # q_gas (wet, T_op, P_gas), q_gas_atm (wet, T_op, P_atm), q_gas_norm_dry / q_ch4_norm_dry (0 C, 1 atm, dry)
+    gas_out = reactor.compute_gas_outputs(df)
+    for col in ("q_gas", "q_gas_atm", "q_gas_norm_dry", "q_ch4_norm_dry"):
+        df[col] = np.asarray(gas_out[col], dtype=float)
 
     output_dir = output_cfg.get("output_dir", "results")
     os.makedirs(output_dir, exist_ok=True)

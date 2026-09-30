@@ -19,8 +19,8 @@
 # active_scenario: thermophilic
 # active_scenario: hybrid_demo     # see docs/hybrid.md and examples/
 # active_scenario: no_xc_demo             # BSM2 without X_c (use_xc = 0)
-# active_scenario: Tatiana_RM_lab_5L      # Tatiana's 5 L digester, cross-test with RM_without_Xc
-active_scenario : BSM2_steady_state
+active_scenario: Tatiana_RM_lab_5L      # Tatiana's 5 L digester, cross-test with RM_without_Xc
+# active_scenario : BSM2_steady_state
 
 # ------ Scenario definitions ------
 scenarios:
@@ -238,7 +238,7 @@ scenarios:
       use_xc:    {value: 0,        units: "-",          description: "No disintegration (RM_without_Xc)"}
       V_liq:     {value: 0.005,    units: "m^3",        description: "5 L liquid volume"}
       V_gas:     {value: 0.002,    units: "m^3",        description: "2 L headspace"}
-      k_p:       {value: 5.0,      units: "m^3.d^-1.bar^-1", description: "Gas outlet friction scaled to the 5 L reactor (BSM2: 5e4 for 300 m3 headspace); keeps P_gas ~ P_atm as the RM gas law assumes"}
+      gas_law_patm: {value: 1,     units: "-",          description: "Headspace at P_atm: same q_gas law as RM_without_Xc (k_p not used)"}
       k_hyd_ch:  {value: 0.2350,   units: "d^-1",       description: "Calibrated (RM parameters_dyn.txt)"}
       k_hyd_pr:  {value: 0.4006,   units: "d^-1",       description: "Calibrated"}
       k_hyd_li:  {value: 0.31,     units: "d^-1",       description: "Calibrated"}
@@ -265,7 +265,7 @@ scenarios:
       use_xc:    {value: 0,        units: "-"}
       V_liq:     {value: 0.005,    units: "m^3"}
       V_gas:     {value: 0.002,    units: "m^3"}
-      k_p:       {value: 5.0,      units: "m^3.d^-1.bar^-1"}
+      gas_law_patm: {value: 1,     units: "-"}
       k_hyd_ch:  {value: 0.2350,   units: "d^-1"}
       k_hyd_pr:  {value: 0.4006,   units: "d^-1"}
       k_hyd_li:  {value: 0.31,     units: "d^-1"}

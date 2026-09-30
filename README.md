@@ -98,7 +98,7 @@ python tests/benchmark_bsm2.py --dynamic-q --results results/dynamic_out.csv \
 ```
 
 Run both after any change to `src/`; a non-zero exit code means the equations changed. Plus
-`python tests/test_xc_flag.py` for the disintegration switch (`use_xc`, with/without the composite
+`python tests/test_gas_law.py` for the gas-flow law switch (`gas_law_patm`), `python tests/test_xc_flag.py` for the disintegration switch (`use_xc`, with/without the composite
 `X_xc` — Batstone et al. 2015) and `tests/compare_tatiana_rm.py` for its cross-test on a 5 L lab
 digester (`Tatiana_RM_lab_5L`); see [docs/validation.md](docs/validation.md) §C.
 Protocol, metrics and expected numbers: [docs/validation.md](docs/validation.md).

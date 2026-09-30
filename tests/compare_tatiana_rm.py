@@ -7,8 +7,8 @@ Cross-test of the use_xc = 0 implementation against the RM_without_Xc code (Tati
 Reference: tests/data/tatiana_rm_sim_result.csv = RM_without_Xc/outputs/sim_result.csv (193 d, 40 rows/d),
 produced by the RM notebook with parameters_dyn.txt and its y0. Both runs are sampled at integer days.
 
-Expected agreement: NOT bit-for-bit. The biochemistry is the same (see docs), but the two codes differ in
-  - gas flow law (k_p overpressure vs. P_gas = P_atm assumption)
+Expected agreement: NOT bit-for-bit. The biochemistry and, with gas_law_patm = 1 (set in the scenario), the
+gas-flow law are the same (see docs), but the two codes differ in
   - acid-base formulation (algebraic charge balance vs. 6 ion ODEs with k_A_B = 1e10) and integrator
   - RM applies no integrator restart at feed steps and clips negative states in place
 so the tolerances below are those of a model cross-check, not of a numerical identity.
@@ -57,6 +57,22 @@ def main():
 
     print(f"Tatiana_RM_lab_5L vs RM_without_Xc — {len(days)} daily samples, days 0–{days[-1]} "
           f"(RM shifted by +{a.rm_shift_days:g} d, see docstring)")
+    # Biogas flow of the RM run, recomputed from its states with its own law (RM does not save it in sim_result):
+    # q_gas = R T V_liq (rT8/16 + rT9/64 + rT10) / (P_atm - p_H2O), T fixed at 35 C, V_liq = 5 L, kLa = 200.
+    if "q_gas" in o.columns:
+        R, T, Tb, V_liq, kLa, P_atm = 0.083145, 308.15, 298.15, 0.005, 200.0, 1.013
+        dT = 1 / Tb - 1 / T
+        K_H_co2 = 0.035 * np.exp(-19410 / (100 * R) * dT)
+        K_H_ch4 = 0.0014 * np.exp(-14240 / (100 * R) * dT)
+        K_H_h2 = 7.8e-4 * np.exp(-4180 / (100 * R) * dT)
+        p_h2o = 0.0313 * np.exp(5290 * dT)
+        p_h2, p_ch4, p_co2 = r["S_gas_h2"] * R * T / 16, r["S_gas_ch4"] * R * T / 64, r["S_gas_co2"] * R * T
+        rT8 = kLa * (r["S_h2"] - 16 * K_H_h2 * p_h2)
+        rT9 = kLa * (r["S_ch4"] - 64 * K_H_ch4 * p_ch4)
+        rT10 = kLa * ((r["S_IC"] - r["S_hco3_ion"]) - K_H_co2 * p_co2)
+        r["q_gas"] = np.maximum(0.0, R * T * V_liq * (rT8 / 16 + rT9 / 64 + rT10) / (P_atm - p_h2o))
+        KEY.append("q_gas")
+
     print(f"{'state':12s}{'ours avg':>12s}{'RM avg':>12s}{'avg err %':>11s}{'nRMSE %':>10s}   ok")
     ok_all = True
     rows = []

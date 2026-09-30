@@ -58,8 +58,8 @@ def _compute_q_gas(df, reactor):
         S_gas_co2=df["S_gas_co2"].values,
     )
 
-    p_total = p_ch4 + p_co2 + p_h2 + reactor.p_gas_h2o
-    q_gas = np.maximum(0.0, param.k_p * (p_total - param.p_atm))
+    # same q_gas law as the simulation (gas_law_patm); the P_atm law needs S_h2/S_ch4/S_co2
+    q_gas = np.asarray(reactor.compute_gas_outputs(df)["q_gas"], dtype=float)
 
     return q_gas, p_ch4, p_co2, p_h2
 
@@ -167,7 +167,7 @@ def plot_biogas(df, param, save_path: str = None, show: bool = True):
     # Max biogas flow
     idx_max = int(np.argmax(q_gas))
     ax_top.annotate(
-        f"max {q_gas[idx_max]:.0f} m³/d",
+        f"max {q_gas[idx_max]:.4g} m³/d",
         xy=(t[idx_max], q_gas[idx_max]),
         xytext=(t[idx_max] + max(t)*0.03, q_gas[idx_max] * 0.92),
         fontsize=8, color=C_QGAS,

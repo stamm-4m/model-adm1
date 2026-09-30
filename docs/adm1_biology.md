@@ -300,11 +300,17 @@ super-saturation:
 The total head-space pressure drives the **biogas flow** out of the reactor:
 
 ```
-q_gas = k_p · ( p_gas_total  -  p_atm )
+q_gas = k_p · ( p_gas_total  -  p_atm )                                 (gas_law_patm = 0, BSM2)
+q_gas = R·T·V_liq·(ρT8/16 + ρT9/64 + ρT10) / ( p_atm − p_H2O )          (gas_law_patm = 1, Batstone 2002)
 ```
 
-This is what is reported as **methane production** — the headline number
-the bio-engineer cares about.
+The first law treats the head-space as slightly pressurised, emptying through an outlet with
+friction `k_p` (BSM2: `P_gas ≈ 1.07 bar`). The second assumes the head-space stays at atmospheric
+pressure and everything transferred leaves at once (the `k_p → ∞` limit; lab reactor vented to a gas
+counter). `q_gas` is wet gas at `T_op` and head-space pressure; the output also gives it at `P_atm`
+(`q_gas_atm = q_gas·P_gas/P_atm`, the value tabulated in the BSM2 report) and as dry gas in normal
+conditions (`q_gas_norm_dry`, `q_ch4_norm_dry`), which is what lab gas counters measure.
+The methane flow is the headline number the bio-engineer cares about.
 
 ---
 

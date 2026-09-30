@@ -100,14 +100,36 @@ python tests/compare_tatiana_rm.py --results results/dynamic_out.csv    # → PA
 ```
 Result (2026-09-10): 193-d averages within 1.0 % on all 27 states, pH within 0.002 units, daily
 nRMSE ≤ 6 % (VFAs 3–6 %, biomass ≤ 0.3 %, gas ≤ 3 %). The remaining differences are the gas-flow
-law (k_p overpressure vs. P_gas = P_atm), the acid-base formulation (algebraic vs. ion ODEs) and the
+law (k_p overpressure vs. P_gas = P_atm — since 2026-09-30 the scenario uses the same law, see D), the acid-base formulation (algebraic vs. ion ODEs) and the
 integrator. Two things to know about the reference: the RM notebook consumes the first influent row
 as a CSV header, so its feed is one day early (the script shifts it back, `--rm-shift-days 1`), and
 it keeps T_op = 35 °C although the data are at 39 °C — `Tatiana_RM_lab_5L_39C` is the consistent
 version (free NH₃ +30 %, mean acetate 0.31 → 0.64 kgCOD/m³: the calibrated `K_I_nh3` belongs to the
 35 °C constants).
 
+## D. Gas-flow law switch (`gas_law_patm`)
+
+`python tests/test_gas_law.py` (≈ 5 s) checks that (1) `gas_law_patm: 0` (default) gives the validated
+right-hand side and `q_gas` to machine precision, including the gas phase; (2) the post-processing
+(`compute_gas_outputs`, used for the CSV columns and the biogas plot) returns the ODE's own `q_gas`
+for both laws; (3) `gas_law_patm: 1` implements `q_gas = R·T·V_liq·(ρT8/16 + ρT9/64 + ρT10)/(P_atm − p_H2O)`;
+(4) with that law `dP_gas/dt = 0` at `P_gas = P_atm`, and `P_gas` converges to `P_atm` (from 1.065 bar to
+1.01300000 bar in 5 d); (5) the flow conversions are consistent.
+
+Which law does BSM2 use inside the ODEs? The report writes `q_gas = k_p (P_gas − P_atm)` and mentions
+the factor `P_gas/P_atm` "to obtain the flow rate at atmospheric pressure". Recomputing the gas flow
+that closes the MATLAB gas balance from `Matlabout_dyn.csv` gives `k_p (P_gas − P_atm)` within 0.04 %
+(with the factor it would be 5 % higher): the factor is an output conversion only. Our steady state
+matches the BSM2 gas states to 1e-11 with the plain law, and our `q_gas_atm` column reproduces the
+published steady-state `q_gas = 2955.70345419378 m³/d` to 2e-11 (checked in test A).
+
+Term-by-term against the RM_without_Xc code (same state, same parameters): with `gas_law_patm: 1` the
+three gas derivatives are identical to 1e-15 (with `0` they differ, as expected). Tatiana cross-test
+(2026-09-30, `gas_law_patm: 1` instead of the former `k_p = 5` approximation): gas states now within
+0.2 % on average (S_gas_ch4 +0.29 → +0.03 %, S_gas_co2 +0.28 → −0.00 %), biogas flow within 0.04 %
+(nRMSE 4.5 %), pH within 0.001; all 28 states + q_gas PASS.
+
 ## Regression use (both tests)
 
-Any change to `src/` must keep the verdict PASS (A, B and `tests/test_xc_flag.py`). For hybrid models, run the hybrid scenario
+Any change to `src/` must keep the verdict PASS (A, B, `tests/test_xc_flag.py` and `tests/test_gas_law.py`). For hybrid models, run the hybrid scenario
 with identity hooks: the benchmark table must be identical to `BSM2_dynamic`.

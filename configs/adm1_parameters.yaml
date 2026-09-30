@@ -232,6 +232,23 @@ disintegration:
     units: "-"
     description: "Particulate-inert fraction of decayed biomass (use_xc = 0 only)"
 
+# ------ Gas-flow law switch ------
+# gas_law_patm = 0 : BSM2 overpressure law  q_gas = k_p · (P_gas − P_atm)   (Rosen & Jeppsson 2006,
+#                    PyADM1, MATLAB BSM2 — validated). The headspace is slightly pressurised and the
+#                    gas leaves through an outlet with friction constant k_p.
+# gas_law_patm = 1 : headspace at atmospheric pressure (Batstone et al. 2002; RM_without_Xc code):
+#                    q_gas = R·T_op·V_liq·(ρT8/16 + ρT9/64 + ρT10) / (P_atm − p_H2O); k_p is not used.
+#                    Everything transferred to the gas phase leaves instantly. It is the k_p → ∞ limit of
+#                    the overpressure law; appropriate for a lab reactor vented to a gas counter.
+# Both laws give the same steady state; they differ only in the gas-phase transient.
+# In both cases q_gas is WET gas at T_op and headspace pressure; the output CSV also gives
+# q_gas_atm, q_gas_norm_dry and q_ch4_norm_dry (see docs/user_manual.md).
+gas_flow:
+  gas_law_patm:
+    value: 0
+    units: "-"
+    description: "0 = BSM2 overpressure law k_p(P_gas - P_atm); 1 = headspace at P_atm (Batstone 2002)"
+
 # ------ Biochemical and kinetic parameters ------
 biochemical_parameters:
   k_dis:
