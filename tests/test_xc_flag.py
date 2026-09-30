@@ -30,13 +30,13 @@ BIOMASS = ["X_su", "X_aa", "X_fa", "X_c4", "X_pro", "X_ac", "X_h2"]
 
 def bsm2_state():
     """BSM2 initial state (key 'BSM2' of configs/Initial_states.yaml), independent of the active scenario."""
-    raw = yaml.safe_load(open("configs/Initial_states.yaml"))["BSM2"]
+    raw = yaml.safe_load(open("configs/Initial_states.yaml", encoding="utf-8"))["BSM2"]
     return np.array([float(raw[n]["value"]) for n in FULL_STATE_NAMES])
 
 
 def bsm2_feed():
     """BSM2 constant feed (key 'constant' of configs/Influent.yaml)."""
-    raw = yaml.safe_load(open("configs/Influent.yaml"))["constant"]
+    raw = yaml.safe_load(open("configs/Influent.yaml", encoding="utf-8"))["constant"]
     return {k + "_in": float(v["value"]) for k, v in raw.items() if isinstance(v, dict) and "value" in v}
 
 

@@ -199,7 +199,7 @@ def main():
     print(f"\nTolerances: |avg err| <= {a.tol_avg} % (pH: {a.tol_ph} units), daily nRMSE <= {a.tol_rmse} %")
     print(f"VERDICT: {verdict}")
 
-    with open(os.path.join(a.outdir, "benchmark_summary.md"), "w") as f:
+    with open(os.path.join(a.outdir, "benchmark_summary.md"), "w", encoding="utf-8") as f:
         f.write(f"# BSM2 ring test — {a.label}\n\nReference: MATLAB BSM2 ADM1 (Rosen & Jeppsson 2006), file `{os.path.basename(a.reference)}`.\n")
         f.write(f"Horizon 0–{t_end:g} d; RMSE on daily means, days {d_lo}–{d_hi}.\n\n")
         f.write(f"**Verdict: {verdict}**\n\nTolerances: |avg err| ≤ {a.tol_avg} % (pH ≤ {a.tol_ph}), daily nRMSE ≤ {a.tol_rmse} %.\n\n")

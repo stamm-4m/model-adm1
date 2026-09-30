@@ -58,7 +58,7 @@ class InitialState:
     def _load(self):
         """Determine the active state set and load it."""
         active_key = self._get_active_key()
-        with open(self.states_file, "r") as f:
+        with open(self.states_file, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f)
 
         if active_key not in raw:
@@ -92,7 +92,7 @@ class InitialState:
     def _get_active_key(self) -> str:
         """Read the active scenario and extract the initial-state set key."""
         try:
-            with open(self.scenarios_file, "r") as f:
+            with open(self.scenarios_file, "r", encoding="utf-8") as f:
                 raw = yaml.safe_load(f)
             active_scenario = raw.get("active_scenario", "BSM2")
             key = (

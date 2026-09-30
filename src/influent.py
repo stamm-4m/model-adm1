@@ -70,7 +70,7 @@ class Influent:
         """Read the configuration and load data according to the active mode."""
         mode_key = self._get_active_mode()
 
-        with open(self.influent_file, "r") as f:
+        with open(self.influent_file, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f)
 
         if not isinstance(raw, dict):
@@ -126,7 +126,7 @@ class Influent:
     def _get_active_mode(self) -> str:
         """Read the active scenario and return the influent-mode key."""
         try:
-            with open(self.scenarios_file, "r") as f:
+            with open(self.scenarios_file, "r", encoding="utf-8") as f:
                 raw = yaml.safe_load(f)
 
             if not isinstance(raw, dict):

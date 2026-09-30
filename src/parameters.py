@@ -54,7 +54,7 @@ class ADM1Parameters:
 
     def _load_base_params(self) -> dict:
         """Load and flatten adm1_parameters.yaml."""
-        with open(self.params_file, "r") as f:
+        with open(self.params_file, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f)
         return self._flatten(raw)
 
@@ -66,7 +66,7 @@ class ADM1Parameters:
         """
         overrides = {}
         try:
-            with open(self.scenarios_file, "r") as f:
+            with open(self.scenarios_file, "r", encoding="utf-8") as f:
                 raw = yaml.safe_load(f)
         except FileNotFoundError:
             return overrides
