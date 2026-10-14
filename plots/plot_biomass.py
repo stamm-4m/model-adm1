@@ -13,10 +13,12 @@ Three panels in one figure:
                    magnitude variations
 
   Middle panel : Stacked areas in ABSOLUTE values [kgCOD/m³]
-                 → shows the total biomass and its quantitative evolution
+                 → the top edge of the stack IS the total active biomass (same axis)
 
   Bottom panel : Apparent net specific growth rate per population [d⁻¹]
-                 computed as  Δ(ln X) / Δt   (= μ_app)
+                 computed as  Δ(ln X) / Δt   (= μ_app, includes decay and wash-out),
+                 smoothed with a 7-DAY moving average (window converted to points
+                 from the output time step)
                  → early-warning signal: a fast-declining population shows
                    trouble before biogas drops.
 
@@ -139,8 +141,8 @@ def plot_biomass(df, save_path: str = None, show: bool = True):
 
     # Annotation for the methanogens dashed line
     ax_pct.text(
-        t[len(t) // 10], float(np.nanmean(pct_meth)) + 2.5,
-        "── total methanogens",
+        0.10, float(np.nanmean(pct_meth)) + 2.5,
+        "── total methanogens", transform=ax_pct.get_yaxis_transform(),
         color="white", fontsize=8, alpha=0.85,
     )
 
@@ -149,16 +151,12 @@ def plot_biomass(df, save_path: str = None, show: bool = True):
     # ── Panel 2: absolute areas ───────────────────────────────────────────────
     ax_abs.stackplot(t, stack_abs, colors=colors, alpha=0.78)
 
-    # Total biomass curve (right axis)
-    ax_abs_r = ax_abs.twinx()
-    ax_abs_r.plot(t, X_tot, color="#2c3e50", lw=1.6, ls="-",
-                  label="Total biomass")
-    ax_abs_r.set_ylabel("Total  [kgCOD/m³]", fontsize=9,
-                         rotation=-90, labelpad=14, color="#2c3e50")
-    ax_abs_r.tick_params(axis="y", labelcolor="#2c3e50")
-    ax_abs_r.spines[["top", "left"]].set_visible(False)
+    # Total biomass = top edge of the stack (same axis, so the line sits exactly on it)
+    ax_abs.plot(t, X_tot, color="#2c3e50", lw=1.6, ls="-", label="Total active biomass")
+    ax_abs.legend(loc="upper left", fontsize=8.5, framealpha=0.85)
 
     ax_abs.set_ylabel("Biomass  [kgCOD/m³]", fontsize=10)
+    ax_abs.set_ylim(bottom=0)
     ax_abs.grid(axis="x", ls=":", lw=0.5, alpha=0.5)
     ax_abs.spines[["top", "right"]].set_visible(False)
     plt.setp(ax_abs.get_xticklabels(), visible=False)
@@ -171,10 +169,12 @@ def plot_biomass(df, save_path: str = None, show: bool = True):
     # Growth zone: pale green above 0
     ax_rate.axhspan(0, 999, color="#e8f5ee", alpha=0.35, zorder=0)
 
+    # Light smoothing for readability: 7-DAY window, converted to output points
+    dt_med = float(np.median(np.diff(t))) if len(t) > 1 else 1.0
+    window_pts = max(1, int(round(7.0 / dt_med))) if dt_med > 0 else 1
     for k in keys:
         r = rates[k]
-        # Light smoothing (7-day moving average) for readability
-        r_smooth = _moving_avg(r, window=7)
+        r_smooth = _moving_avg(r, window=window_pts)
         ax_rate.plot(t, r_smooth,
                      color=POPULATIONS[k]["color"],
                      lw=1.2, alpha=0.85,
@@ -189,18 +189,22 @@ def plot_biomass(df, save_path: str = None, show: bool = True):
     if valid:
         p5, p95 = np.percentile(valid, 5), np.percentile(valid, 95)
         margin = max(abs(p5), abs(p95)) * 1.5
+        if not np.isfinite(margin) or margin <= 0:
+            margin = 1e-3
         ax_rate.set_ylim(-margin, margin)
 
-    ax_rate.set_ylabel("Net growth rate  [d⁻¹]", fontsize=10)
+    ax_rate.set_ylabel("Net growth rate  [d⁻¹]\n(7-d moving avg.)", fontsize=10)
     ax_rate.set_xlabel("Time  [d]", fontsize=10)
     ax_rate.grid(axis="x", ls=":", lw=0.5, alpha=0.5)
     ax_rate.spines[["top", "right"]].set_visible(False)
 
     # Zone annotations
-    ax_rate.text(t[3], ax_rate.get_ylim()[1] * 0.85,
-                 "growth", color="#27ae60", fontsize=8, alpha=0.8)
-    ax_rate.text(t[3], ax_rate.get_ylim()[0] * 0.85,
-                 "decline", color="#c0392b", fontsize=8, alpha=0.8)
+    ax_rate.text(0.01, 0.92, "growth", transform=ax_rate.transAxes, va="top",
+                 color="#27ae60", fontsize=8, alpha=0.8)
+    ax_rate.text(0.01, 0.08, "decline", transform=ax_rate.transAxes, va="bottom",
+                 color="#c0392b", fontsize=8, alpha=0.8)
+
+    ax_rate.set_xlim(t[0], t[-1])       # shared x: no blank margin before t_start / after t_end
 
     # ── Y-label alignment ─────────────────────────────────────────────────────
     fig.align_ylabels([ax_pct, ax_abs, ax_rate])
@@ -237,8 +241,8 @@ def _add_step_bands(ax, stack_pct, keys):
         "Methanogenesis": "#0b5345",
     }
 
-    # Compute cumulative heights to place labels at t_mid
-    t_mid_idx = len(stack_pct[0]) // 2
+    # Labels are drawn at the right edge, so use the band heights at the LAST point
+    t_mid_idx = len(stack_pct[0]) - 1
     cumul = 0.0
     for step_name, step_keys in step_groups.items():
         idx_list = [list(POPULATIONS.keys()).index(k) for k in step_keys]
@@ -248,9 +252,8 @@ def _add_step_bands(ax, stack_pct, keys):
 
         if band_height > 3:   # only show the label if the band is visible
             ax.text(
-                ax.get_xlim()[1] * 0.98 if ax.get_xlim()[1] > 0 else 1,
-                y_center,
-                step_name,
+                0.995, y_center, step_name,
+                transform=ax.get_yaxis_transform(),
                 ha="right", va="center",
                 fontsize=8, color=step_colors_text[step_name],
                 fontweight="bold", alpha=0.85,
@@ -277,10 +280,12 @@ def _add_legend(ax, keys, colors, labels):
 
 def _moving_avg(arr, window=7):
     """Simple moving average — handles NaNs and edges."""
+    arr    = np.asarray(arr, dtype=float)
     result = np.full_like(arr, np.nan, dtype=float)
     valid  = ~np.isnan(arr)
     if not valid.any():
         return result
+    window = max(1, min(int(window), len(arr)))   # np.convolve('same') needs window <= len(arr)
     # Replace NaNs with 0 for the convolution
     filled = np.where(valid, arr, 0.0)
     kernel = np.ones(window) / window

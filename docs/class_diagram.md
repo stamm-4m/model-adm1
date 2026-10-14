@@ -111,11 +111,11 @@ classDiagram
 
     class configs {
         <<YAML>>
-        Scenario.yaml
+        scenario.yaml
         adm1_parameters.yaml
-        Initial_states.yaml
-        Influent.yaml
-        Simulation.yaml
+        initial_states.yaml
+        influent.yaml
+        simulation.yaml
     }
 
     main --> ADM1Parameters : builds
@@ -135,16 +135,16 @@ classDiagram
     hybrid ..> ADM1Reactor : sets overrides and residual_correction
     InitialState ..> acid_base : (via main) ions at t=0
     Influent ..> acid_base : constant feed with pH key
-    ADM1Parameters ..> configs : adm1_parameters.yaml + Scenario.yaml
-    InitialState ..> configs : Initial_states.yaml + Scenario.yaml
-    Influent ..> configs : Influent.yaml + Scenario.yaml + CSV
+    ADM1Parameters ..> configs : adm1_parameters.yaml + scenario.yaml
+    InitialState ..> configs : initial_states.yaml + scenario.yaml
+    Influent ..> configs : influent.yaml + scenario.yaml + CSV
     registry ..> configs : models yaml files
 
 ```
 
 ## Reading guide
 
-* **`Scenario.yaml` is the switchboard.** `ADM1Parameters`, `InitialState` and `Influent` each open it
+* **`scenario.yaml` is the switchboard.** `ADM1Parameters`, `InitialState` and `Influent` each open it
   only to read `active_scenario` and pick their own block (`parameter_overrides` / `initial_states` /
   `influent_mode`). They never talk to each other.
 * **`ADM1Parameters` is a flat `dict` with attribute access** (`param.k_dis`, `param.use_xc`). Priority:

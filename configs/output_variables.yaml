@@ -1,0 +1,85 @@
+# Configuration/output_variables
+# Dictionary of EVERY column written to the simulation CSV (dynamic_out.csv).
+# Used to build run.json -> outputs.variables and calibration.state_variables.
+# See docs/run_package.md.
+#
+# kind:
+#   time       : time axis
+#   state      : integrated ODE state
+#   algebraic  : acid-base species recomputed from the charge balance (not integrated)
+#   derived    : post-processed quantity (pH, COD diagnostics, biogas flows)
+#
+# Units are those of the CSV columns. Note: the VFA ions (S_va_ion ... S_ac_ion) are written in
+# kmol.m^-3 (= M) by src/acid_base.py, whereas initial_states.yaml declares them in kgCOD.m^-3.
+
+time:          {kind: time,      units: "d",           name: "Time",                                  description: "Simulation time"}
+
+# ------ Soluble states ------
+S_su:          {kind: state,     units: "kgCOD.m^-3",  name: "Monosaccharides",                       description: "Monosaccharide concentration"}
+S_aa:          {kind: state,     units: "kgCOD.m^-3",  name: "Amino acids",                           description: "Amino-acid concentration"}
+S_fa:          {kind: state,     units: "kgCOD.m^-3",  name: "LCFA",                                  description: "Long-chain fatty acid concentration"}
+S_va:          {kind: state,     units: "kgCOD.m^-3",  name: "Valerate (total)",                      description: "Total valerate concentration"}
+S_bu:          {kind: state,     units: "kgCOD.m^-3",  name: "Butyrate (total)",                      description: "Total butyrate concentration"}
+S_pro:         {kind: state,     units: "kgCOD.m^-3",  name: "Propionate (total)",                    description: "Total propionate concentration"}
+S_ac:          {kind: state,     units: "kgCOD.m^-3",  name: "Acetate (total)",                       description: "Total acetate concentration"}
+S_h2:          {kind: state,     units: "kgCOD.m^-3",  name: "Dissolved hydrogen",                    description: "Dissolved hydrogen concentration"}
+S_ch4:         {kind: state,     units: "kgCOD.m^-3",  name: "Dissolved methane",                     description: "Dissolved methane concentration"}
+S_IC:          {kind: state,     units: "kmol C.m^-3", name: "Inorganic carbon",                      description: "Total inorganic carbon"}
+S_IN:          {kind: state,     units: "kmol N.m^-3", name: "Inorganic nitrogen",                    description: "Total inorganic nitrogen"}
+S_I:           {kind: state,     units: "kgCOD.m^-3",  name: "Soluble inerts",                        description: "Soluble inert COD"}
+
+# ------ Particulate states ------
+X_xc:          {kind: state,     units: "kgCOD.m^-3",  name: "Composites",                            description: "Composite particulate matter"}
+X_ch:          {kind: state,     units: "kgCOD.m^-3",  name: "Carbohydrates",                         description: "Particulate carbohydrates"}
+X_pr:          {kind: state,     units: "kgCOD.m^-3",  name: "Proteins",                              description: "Particulate proteins"}
+X_li:          {kind: state,     units: "kgCOD.m^-3",  name: "Lipids",                                description: "Particulate lipids"}
+X_su:          {kind: state,     units: "kgCOD.m^-3",  name: "Sugar degraders",                       description: "Sugar-degrading biomass"}
+X_aa:          {kind: state,     units: "kgCOD.m^-3",  name: "Amino-acid degraders",                  description: "Amino-acid-degrading biomass"}
+X_fa:          {kind: state,     units: "kgCOD.m^-3",  name: "LCFA degraders",                        description: "LCFA-degrading biomass"}
+X_c4:          {kind: state,     units: "kgCOD.m^-3",  name: "Valerate/butyrate degraders",           description: "Valerate- and butyrate-degrading biomass"}
+X_pro:         {kind: state,     units: "kgCOD.m^-3",  name: "Propionate degraders",                  description: "Propionate-degrading biomass"}
+X_ac:          {kind: state,     units: "kgCOD.m^-3",  name: "Acetate degraders",                     description: "Acetate-degrading (acetoclastic methanogenic) biomass"}
+X_h2:          {kind: state,     units: "kgCOD.m^-3",  name: "Hydrogen degraders",                    description: "Hydrogen-degrading (hydrogenotrophic methanogenic) biomass"}
+X_I:           {kind: state,     units: "kgCOD.m^-3",  name: "Particulate inerts",                    description: "Particulate inert COD"}
+
+# ------ Strong ions (states) ------
+S_cation:      {kind: state,     units: "M",           name: "Strong cations",                        description: "Strong cations (kmol.m^-3)"}
+S_anion:       {kind: state,     units: "M",           name: "Strong anions",                         description: "Strong anions (kmol.m^-3)"}
+
+# ------ Acid-base species (algebraic, recomputed from the charge balance) ------
+S_H_ion:       {kind: algebraic, units: "M",           name: "H+",                                    description: "Hydrogen ion concentration (kmol.m^-3)"}
+S_va_ion:      {kind: algebraic, units: "M",           name: "Valerate ion",                          description: "Dissociated valerate (kmol.m^-3)"}
+S_bu_ion:      {kind: algebraic, units: "M",           name: "Butyrate ion",                          description: "Dissociated butyrate (kmol.m^-3)"}
+S_pro_ion:     {kind: algebraic, units: "M",           name: "Propionate ion",                        description: "Dissociated propionate (kmol.m^-3)"}
+S_ac_ion:      {kind: algebraic, units: "M",           name: "Acetate ion",                           description: "Dissociated acetate (kmol.m^-3)"}
+S_hco3_ion:    {kind: algebraic, units: "M",           name: "Bicarbonate",                           description: "Bicarbonate (kmol C.m^-3)"}
+S_co2:         {kind: algebraic, units: "M",           name: "Dissolved CO2",                         description: "Dissolved free CO2 (kmol C.m^-3)"}
+S_nh3:         {kind: algebraic, units: "M",           name: "Free ammonia",                          description: "Free ammonia (kmol N.m^-3)"}
+S_nh4_ion:     {kind: algebraic, units: "M",           name: "Ammonium",                              description: "Ammonium (kmol N.m^-3)"}
+
+# ------ Gas-phase states ------
+S_gas_h2:      {kind: state,     units: "kgCOD.m^-3",  name: "Gas H2",                                description: "Hydrogen in the headspace"}
+S_gas_ch4:     {kind: state,     units: "kgCOD.m^-3",  name: "Gas CH4",                               description: "Methane in the headspace"}
+S_gas_co2:     {kind: state,     units: "kmol C.m^-3", name: "Gas CO2",                               description: "Carbon dioxide in the headspace"}
+
+# ------ Derived: acid-base diagnostics ------
+pH:            {kind: derived,   units: "-",           name: "pH",                                    description: "pH = -log10(S_H_ion)"}
+charge_residual: {kind: derived, units: "M",           name: "Charge-balance residual",               description: "Electroneutrality residual of the acid-base solver (should be ~0)"}
+
+# ------ Derived: COD diagnostics (src/acid_base.py -> compute_total_cod) ------
+COD_soluble:            {kind: derived, units: "kgCOD.m^-3", name: "Soluble COD",            description: "Sum of soluble COD states"}
+COD_particulate:        {kind: derived, units: "kgCOD.m^-3", name: "Particulate COD",        description: "Sum of particulate COD states"}
+COD_liquid_total:       {kind: derived, units: "kgCOD.m^-3", name: "Liquid COD",             description: "Soluble + particulate COD"}
+COD_gas:                {kind: derived, units: "kgCOD.m^-3", name: "Gas COD",                description: "S_gas_h2 + S_gas_ch4 (gas-phase concentration)"}
+COD_total_with_gas:     {kind: derived, units: "kgCOD.m^-3", name: "Liquid + gas COD (sum)", description: "Sum of concentrations only; NOT a conservative mass inventory"}
+COD_liquid_inventory:   {kind: derived, units: "kgCOD",      name: "Liquid COD inventory",   description: "COD_liquid_total x V_liq"}
+COD_gas_inventory:      {kind: derived, units: "kgCOD",      name: "Gas COD inventory",      description: "COD_gas x V_gas"}
+COD_total_inventory:    {kind: derived, units: "kgCOD",      name: "Total COD inventory",    description: "Liquid + gas COD inventory"}
+COD_gas_liquid_basis:   {kind: derived, units: "kgCOD.m^-3", name: "Gas COD (liquid basis)", description: "Gas COD inventory / V_liq"}
+COD_total_liquid_basis: {kind: derived, units: "kgCOD.m^-3", name: "Total COD (liquid basis)", description: "COD_liquid_total + COD_gas_liquid_basis"}
+
+# ------ Derived: biogas flows (src/reactor.py -> compute_gas_outputs) ------
+q_gas:          {kind: derived, units: "m^3.d^-1", name: "Biogas flow (wet, T_op, P_gas)", description: "Wet biogas flow at T_op and headspace pressure (the flow used in the ODE)"}
+q_gas_atm:      {kind: derived, units: "m^3.d^-1", name: "Biogas flow (wet, T_op, P_atm)", description: "q_gas x P_gas / P_atm"}
+q_gas_norm_dry: {kind: derived, units: "m^3.d^-1", name: "Biogas flow (dry, normal)",      description: "Dry biogas at 0 C and 1.01325 bar"}
+q_ch4_norm_dry: {kind: derived, units: "m^3.d^-1", name: "Methane flow (dry, normal)",     description: "Dry CH4 at 0 C and 1.01325 bar (x 1e6 -> NmL/d)"}

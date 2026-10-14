@@ -9,7 +9,7 @@ which gives a sharper transition around K_I.
 Registered as:
   models/nh3_hill.yaml  (backend: callable, target: I_nh3)
 Wired by:
-  configs/Scenario.yaml > scenarios.<your_scenario>.hybrid.use: [nh3_hill]
+  configs/scenario.yaml > scenarios.<your_scenario>.hybrid.use: [nh3_hill]
 
 Required signature
 ------------------

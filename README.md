@@ -29,13 +29,21 @@ pip install -r requirements.txt    # numpy scipy pandas matplotlib pyyaml
 python main.py
 ```
 
-Runs the scenario named in `configs/Scenario.yaml` (`active_scenario`, default `BSM2_dynamic`:
+Runs the scenario named in `configs/scenario.yaml` (`active_scenario`, default `BSM2_dynamic`:
 the BSM2 reference digester, 280 days of daily-averaged influent, ~2 min) and writes
 
 ```
 results/dynamic_out.csv          time + 38 states + pH, charge residual, COD diagnostics
 results/figures/*.png            biogas · biomass · pH/alkalinity
+runs/<run_id>/                   run package for the STAMM registry (never overwritten):
+    dynamic_out.csv              same CSV as above
+    run.json                     model, resolved parameters, initial states, influent, solver, column dictionary
+    influent.csv                 copy of the influent (dynamic influent only)
+runs/<run_id>.zip                the same files, ready to upload
 ```
+
+See [docs/run_package.md](docs/run_package.md) for the content of `run.json`
+(`output.run_package` in `configs/simulation.yaml` turns it on/off).
 
 Other commands:
 
@@ -47,30 +55,30 @@ python main.py --list-hooks        # what a plug-in may replace (Rho_1…Rho_19,
 ## 3. Configure — one switchboard, four catalogues, one numerics file
 
 ```
-configs/Scenario.yaml            ← SWITCHBOARD: `active_scenario: <name>`; each scenario picks
+configs/scenario.yaml            ← SWITCHBOARD: `active_scenario: <name>`; each scenario picks
         │                          one entry from each catalogue (+ optional overrides)
-        ├── initial_states: ──►  configs/Initial_states.yaml   digester state at t = 0 (38 variables)
-        ├── influent_mode:  ──►  configs/Influent.yaml         feeds: CSV time series or constant values
+        ├── initial_states: ──►  configs/initial_states.yaml   digester state at t = 0 (38 variables)
+        ├── influent_mode:  ──►  configs/influent.yaml         feeds: CSV time series or constant values
         ├── T_op, parameter_overrides ─► configs/adm1_parameters.yaml   ADM1/BSM2 constants (do not edit; override)
         └── hybrid.use: [...] ──►  models/*.yaml                ML plug-ins (optional)
 
-configs/Simulation.yaml          ← NUMERICS: solver, tolerances, horizon, output step, file names
+configs/simulation.yaml          ← NUMERICS: solver, tolerances, horizon, output step, file names
 ```
 
 To run another case, change **one line**:
 
 ```yaml
-# configs/Scenario.yaml
+# configs/scenario.yaml
 active_scenario : BSM2_ringtest        # e.g. the run with dynamic feed flow Q(t)
 ```
 
-To create a case: add a feed block to `Influent.yaml` and/or a start state to `Initial_states.yaml`,
+To create a case: add a feed block to `influent.yaml` and/or a start state to `initial_states.yaml`,
 then combine them in a new scenario block:
 
 ```yaml
   my_case:
-    initial_states: BSM2                # key in Initial_states.yaml
-    influent_mode: my_plant             # key in Influent.yaml
+    initial_states: BSM2                # key in initial_states.yaml
+    influent_mode: my_plant             # key in influent.yaml
     T_op: {value: 308.15, units: "K"}
     parameter_overrides: {q_ad: {value: 120.0}}
 ```
@@ -86,12 +94,12 @@ Two BSM2 benchmarks (Rosen & Jeppsson 2006), the same ones PyADM1 was validated 
 
 ```bash
 # A. steady-state test (2 s): final state vs the published BSM2 steady state, 38 states, 14 digits
-#    configs/Scenario.yaml → active_scenario : BSM2_steady_state
+#    configs/scenario.yaml → active_scenario : BSM2_steady_state
 python main.py
 python tests/benchmark_bsm2_steady.py --results results/dynamic_out.csv        # → max |err| 8e-7, PASS
 
 # B. dynamic ring test (2 min): 280 d of BSM2 influent vs the MATLAB/Simulink trajectory
-#    configs/Scenario.yaml → active_scenario : BSM2_ringtest   (or BSM2_ringtest_15min, 50 min, exact)
+#    configs/scenario.yaml → active_scenario : BSM2_ringtest   (or BSM2_ringtest_15min, 50 min, exact)
 python main.py
 python tests/benchmark_bsm2.py --dynamic-q --results results/dynamic_out.csv \
        --reference tests/data/Matlabout_dyn.csv --outdir results/benchmark      # → PASS
@@ -118,15 +126,18 @@ worked examples: [examples/README.md](examples/README.md).
 model-adm1/
 ├── main.py                  entry point (load configs → integrate → CSV + figures)
 ├── initial_states.py        38-state initial vector loader
-├── configs/                 Scenario.yaml (switchboard) · Influent.yaml · Initial_states.yaml ·
-│                            adm1_parameters.yaml · Simulation.yaml · Calibration.yaml · influent CSVs
+├── configs/                 scenario.yaml (switchboard) · influent.yaml · initial_states.yaml ·
+│                            adm1_parameters.yaml · simulation.yaml · calibration.yaml ·
+│                            model_card.yaml · output_variables.yaml   (configuration only, YAML)
+├── data/influent/<source>/  influent time series (CSV), one folder per data source — see data/README.md
 ├── src/                     reactor.py (ODEs) · acid_base.py (pH/DAE) · parameters.py · influent.py ·
-│                            hybrid.py · registry.py
+│                            hybrid.py · registry.py · run_export.py (STAMM run package)
 ├── models/                  hybrid-model registry (one YAML per model)
 ├── examples/                hybrid plug-in examples
 ├── plots/                   diagnostic figures
 ├── tests/                   benchmark_bsm2.py · benchmark_bsm2_steady.py · data/ (BSM2 references)
-├── results/                 outputs
+├── results/                 outputs (overwritten at each run)
+├── runs/                    one run package per run for STAMM (never overwritten) — docs/run_package.md
 └── docs/                    documentation — start at docs/README.md
 ```
 

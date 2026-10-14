@@ -23,22 +23,22 @@ questions, no overlap.
 | Question | File | What lives here |
 | --- | --- | --- |
 | What are the reference ADM1 parameters? | [`configs/adm1_parameters.yaml`](../configs/adm1_parameters.yaml) | All intrinsic ADM1 constants — kinetic, stoichiometric, physico-chemical. **Independent of any specific simulation.** |
-| What is the starting state of the digester? | [`configs/Initial_states.yaml`](../configs/Initial_states.yaml) | Named initial-state vectors (BSM2 reference, custom start-ups, ...). |
-| What enters the digester? | [`configs/Influent.yaml`](../configs/Influent.yaml) | Influent definitions: dynamic CSV time series or constant values. |
-| What do we want to test? | [`configs/Scenario.yaml`](../configs/Scenario.yaml) | Active-scenario selector + per-scenario overrides. **Main entry point for the user.** |
-| How are the equations solved? | [`configs/Simulation.yaml`](../configs/Simulation.yaml) | ODE solver settings, time horizon, output options. |
-| Which parameters are adjusted? | [`configs/Calibration.yaml`](../configs/Calibration.yaml) | Calibration framework: free parameters, bounds, objective function. |
+| What is the starting state of the digester? | [`configs/initial_states.yaml`](../configs/initial_states.yaml) | Named initial-state vectors (BSM2 reference, custom start-ups, ...). |
+| What enters the digester? | [`configs/influent.yaml`](../configs/influent.yaml) | Influent definitions: dynamic CSV time series or constant values. |
+| What do we want to test? | [`configs/scenario.yaml`](../configs/scenario.yaml) | Active-scenario selector + per-scenario overrides. **Main entry point for the user.** |
+| How are the equations solved? | [`configs/simulation.yaml`](../configs/simulation.yaml) | ODE solver settings, time horizon, output options. |
+| Which parameters are adjusted? | [`configs/calibration.yaml`](../configs/calibration.yaml) | Calibration framework: free parameters, bounds, objective function. |
 
 This split is what lets you:
 
 - **Compare simulation cases** without touching the model parameters
   (only swap scenarios).
 - **Calibrate parameters** without entangling them with operating
-  conditions (free parameters live in `Calibration.yaml`, not in
+  conditions (free parameters live in `calibration.yaml`, not in
   `adm1_parameters.yaml`).
 - **Switch operating regimes** (mesophilic ↔ thermophilic) without
   forking the parameter file (use `parameter_overrides:` in
-  `Scenario.yaml`).
+  `scenario.yaml`).
 - **Reproduce results** because each file has a single authoritative
   source of truth.
 
@@ -84,9 +84,9 @@ states, influent profiles, numerical settings, scenarios, or calibration
 parameters.
 
 > Treat this file as a stable library. Per-scenario tweaks belong in
-> `Scenario.yaml > parameter_overrides:`, not here.
+> `scenario.yaml > parameter_overrides:`, not here.
 
-### [`configs/Initial_states.yaml`](../configs/Initial_states.yaml) — where the digester starts
+### [`configs/initial_states.yaml`](../configs/initial_states.yaml) — where the digester starts
 
 Named initial-state vectors. Each set defines the 38 ADM1 state
 variables at `t = 0`:
@@ -100,19 +100,19 @@ Multiple sets can coexist (e.g. `BSM2` reference, plus custom start-ups
 or thermophilic / high-ammonia sets). Each scenario selects one via
 `initial_states:`.
 
-### [`configs/Influent.yaml`](../configs/Influent.yaml) — what comes in
+### [`configs/influent.yaml`](../configs/influent.yaml) — what comes in
 
 Defines the digester feed in one of two modes:
 
 - **`dynamic`** — a CSV time series referenced via `file_path:`. Default:
-  `configs/daily_averages.csv` (BSM2 daily-averaged influent).
+  `data/influent/bsm2/daily_averages.csv` (BSM2 daily-averaged influent).
 - **`constant`** — fixed values defined directly in the YAML.
 
 Custom feedstocks (e.g. `pig_slurry`) are added as additional named
 blocks in this file; scenarios then reference them by name via
 `influent_mode:`.
 
-### [`configs/Scenario.yaml`](../configs/Scenario.yaml) — the user's entry point
+### [`configs/scenario.yaml`](../configs/scenario.yaml) — the user's entry point
 
 The **main entry point**. A scenario is a self-contained recipe that
 bundles:
@@ -130,7 +130,7 @@ and a pig-slurry feedstock; see the README for the full list.
 
 > This file defines the **simulation context**, not the full parameter set.
 
-### [`configs/Simulation.yaml`](../configs/Simulation.yaml) — numerics, not biology
+### [`configs/simulation.yaml`](../configs/simulation.yaml) — numerics, not biology
 
 Numerical settings only — independent of the physical model:
 
@@ -143,7 +143,7 @@ Numerical settings only — independent of the physical model:
 This separation lets you tighten the solver without touching the
 biophysical model and vice versa.
 
-### [`configs/Calibration.yaml`](../configs/Calibration.yaml) — what is adjustable
+### [`configs/calibration.yaml`](../configs/calibration.yaml) — what is adjustable
 
 Defines the calibration framework:
 
@@ -164,24 +164,24 @@ here.
 
 When `python main.py` runs:
 
-1. **`Scenario.yaml`** is read first → picks the active scenario.
+1. **`scenario.yaml`** is read first → picks the active scenario.
 2. The active scenario tells the loader which `initial_states:` set and
    which `influent_mode:` to use, and supplies any `parameter_overrides:`
    and `hybrid:` config.
 3. **`adm1_parameters.yaml`** is loaded as the parameter base; the
    scenario's `parameter_overrides:` are layered on top.
-4. **`Initial_states.yaml`** is loaded for the named initial-state set;
+4. **`initial_states.yaml`** is loaded for the named initial-state set;
    if a target `pH:` is specified, the strong-anion concentration is
    back-solved to make the charge balance close.
-5. **`Influent.yaml`** is loaded for the active influent mode.
-6. **`Simulation.yaml`** is loaded for solver and output settings.
+5. **`influent.yaml`** is loaded for the active influent mode.
+6. **`simulation.yaml`** is loaded for solver and output settings.
 7. The reactor is built; if a `hybrid:` block is present, hooks are
    wired in (see [`hybrid.md`](hybrid.md)).
 8. `solve_ivp` runs; results are written under
    `results/dynamic_out.csv` and (if enabled) plots under
    `results/figures/`.
 
-`Calibration.yaml` is read only when calibration is run explicitly —
+`calibration.yaml` is read only when calibration is run explicitly —
 it's not consumed by the standard simulation entry point.
 
 ---

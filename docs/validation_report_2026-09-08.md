@@ -9,7 +9,7 @@
 | Question | Answer |
 |---|---|
 | Are the refactored **equations** the same as PyADM1? | **Yes, up to one bug.** All 36 shared derivatives agree to ~1e-9 relative at identical states. The one exception is dS_IN/dt (nitrogen), which differs by up to 37 % because the N-content constants were rounded in the YAML (§2.1). S_h2 is solved as an ODE instead of PyADM1's algebraic (DAE) equation — a legitimate BSM2 variant, not a bug. |
-| Does the shipped repo **reproduce PyADM1's results**? | **Almost, but not as shipped.** Run on the BSM2 test, it lands on PyADM1's numbers for every state except the strong ions (`S_cation`, `S_anion`), because `Initial_states.yaml` starts the digester from the wrong ionic state (§2.2). With the fixes applied (delivered as `model-adm1-validated/`) it passes the ring test and matches PyADM1's error profile state-by-state (§4). |
+| Does the shipped repo **reproduce PyADM1's results**? | **Almost, but not as shipped.** Run on the BSM2 test, it lands on PyADM1's numbers for every state except the strong ions (`S_cation`, `S_anion`), because `initial_states.yaml` starts the digester from the wrong ionic state (§2.2). With the fixes applied (delivered as `model-adm1-validated/`) it passes the ring test and matches PyADM1's error profile state-by-state (§4). |
 | What is "the benchmark"? | The **BSM2 ring test**: 280 days of dynamic influent through the BSM2 ADM1 digester, simulated by the reference MATLAB/Simulink implementation of Rosen & Jeppsson (2006). The MATLAB trajectories are already in the PyADM1 repo (`src/Matlabout_dyn.csv`) — this is exactly how PyADM1 itself was validated. §3 explains it and `benchmark_bsm2.py` automates it. |
 | Is the model "validated"? | **Yes.** With PyADM1's constants and initial state, constant q_ad: same errors as PyADM1 (0.01–2.5 % time averages). With the full 15-min influent **and the dynamic flow Q(t)**, the refactored model reproduces the MATLAB BSM2 reference to **0.00–0.04 % on every state and 0.0001 pH units** (daily nRMSE ≤ 0.12 %) — i.e. essentially exactly. PyADM1 never reaches this because it ignores Q. |
 
@@ -17,7 +17,7 @@
 
 ## 1. What was compared and how
 
-Four things were run on the same BSM2 influent (`digester_influent.csv`, 26 881 rows at 15 min, 280 d):
+Four things were run on the same BSM2 influent (`digester_influent_15min.csv`, 26 881 rows at 15 min, 280 d):
 
 | Run | Code | Feed | q_ad | Solver |
 |---|---|---|---|---|
@@ -42,16 +42,16 @@ Ordered by importance. All fixes are applied in the delivered `model-adm1-valida
 `adm1_parameters.yaml`: `N_xc = 0.00268`, `N_I = 0.0042`, `N_bac = 0.00571`. BSM2 defines them as 0.0376/14, 0.06/14, 0.08/14. In BSM2 the disintegration coefficient `N_xc − f_xI·N_I − f_sI·N_I − f_pr·N_aa` is **exactly 0**; with the rounded values it is 2e-5 kmol N/kgCOD, i.e. disintegration creates ammonia from nothing. Effect on the ring test is small (S_IN avg err 0.38 % vs 0.34 %) but it breaks the N balance, which matters for ammonia-inhibition studies and any mass-balance check. **Fix:** exact values (done in patch). Same treatment for the four VFA pKa (10^-4.86 … not 1.38e-5 …; K_a_bu was 0.9 % off, pH solver 2e-4 units off).
 
 ### 2.2 Wrong initial ionic state, then "corrected" by forcing a pH (real bug)
-`Initial_states.yaml` has `S_cation = 0.04` and `pH = 7.4655377`. In the BSM2 digester steady state (MATLAB row 0, PyADM1 `digester_initial.csv`) **S_cation ≈ 0** (0.04 is the *influent* value in the BSM2 report) and the pH is **7.263**. Because a `pH` key is present, `InitialState` overwrites `S_anion` (0.0052 → 0.0408) to force pH 7.4655. Both strong ions then wash out over the 19-day HRT, so the run is off for ~60 days and the 280-day averages of S_anion (+47 %) and S_cation fail the ring test; pH is +0.2 units at t=0. **Fix:** `S_cation: 0.0`, remove the `pH` key (the BSM2 state is charge-consistent as given). Also note: the "Initial pH 7.4655377" line in PyADM1 is dead code — PyADM1 immediately overwrites it with −log10(S_H_ion) = 7.263.
+`initial_states.yaml` has `S_cation = 0.04` and `pH = 7.4655377`. In the BSM2 digester steady state (MATLAB row 0, PyADM1 `digester_initial.csv`) **S_cation ≈ 0** (0.04 is the *influent* value in the BSM2 report) and the pH is **7.263**. Because a `pH` key is present, `InitialState` overwrites `S_anion` (0.0052 → 0.0408) to force pH 7.4655. Both strong ions then wash out over the 19-day HRT, so the run is off for ~60 days and the 280-day averages of S_anion (+47 %) and S_cation fail the ring test; pH is +0.2 units at t=0. **Fix:** `S_cation: 0.0`, remove the `pH` key (the BSM2 state is charge-consistent as given). Also note: the "Initial pH 7.4655377" line in PyADM1 is dead code — PyADM1 immediately overwrites it with −log10(S_H_ion) = 7.263.
 
 ### 2.3 Acid-base constants not temperature-corrected (bug for non-mesophilic scenarios)
 `K_w`, `K_a_co2`, `K_a_IN` are hard-coded at their 35 °C values in the YAML, while `reactor.py` *does* temperature-correct the Henry constants and p_gas_h2o. At the `thermophilic` scenario (55 °C) BSM2 gives K_a_IN = 3.82e-9 vs 1.11e-9 used → free NH₃ under-predicted **3.4×**, so the NH₃ inhibition that scenario is meant to study is wrong. **Fix:** compute the three constants in `ADM1Reactor.__init__` from T_op with the BSM2 van 't Hoff expressions (done in patch). At 35 °C nothing changes.
 
 ### 2.4 `t_end` bug in `main.py`
-`Simulation.yaml` says `t_end: null  # = length of the influent data`, but the code does `if t_end_cfg is None: t_end = 365`. The influent is 280 d, so days 280–365 are simulated with the last influent row held constant (the shipped `results/dynamic_out.csv` has 366 rows). **Fix:** in patch.
+`simulation.yaml` says `t_end: null  # = length of the influent data`, but the code does `if t_end_cfg is None: t_end = 365`. The influent is 280 d, so days 280–365 are simulated with the last influent row held constant (the shipped `results/dynamic_out.csv` has 366 rows). **Fix:** in patch.
 
 ### 2.5 Shipped default scenario is the hybrid demo
-`Scenario.yaml` has `active_scenario: hybrid_demo` (README says `BSM2_dynamic`). The shipped `results/` were therefore produced with a modified Rho_11, a Hill I_nh3 and a methane residual correction — **not** pure ADM1. **Fix:** in patch. For any validation, always run `BSM2_dynamic`.
+`scenario.yaml` has `active_scenario: hybrid_demo` (README says `BSM2_dynamic`). The shipped `results/` were therefore produced with a modified Rho_11, a Hill I_nh3 and a methane residual correction — **not** pure ADM1. **Fix:** in patch. For any validation, always run `BSM2_dynamic`.
 
 ### 2.6 The three "BUG FIXES" in the `reactor.py` header are not PyADM1 bugs
 * "BUG 1 — Rho_T_10 used S_IC instead of S_co2": PyADM1 line 442 uses `S_co2`. ✔ correct in the original.
@@ -61,9 +61,9 @@ Ordered by importance. All fixes are applied in the delivered `model-adm1-valida
 These must have been bugs of an intermediate refactoring version. Recommend rewording the header so nobody thinks the reference implementation is wrong.
 
 ### 2.7 Design differences that are acceptable (documented, not bugs)
-* **S_h2 as ODE** (refactored) vs algebraic Newton solve (PyADM1). Rosen & Jeppsson describe both; the ODE form is stiff, which is why BDF/Radau is required (the shipped `BDF` is right; `RK45`/`DOP853` listed as options in `Simulation.yaml` will be extremely slow or fail).
+* **S_h2 as ODE** (refactored) vs algebraic Newton solve (PyADM1). Rosen & Jeppsson describe both; the ODE form is stiff, which is why BDF/Radau is required (the shipped `BDF` is right; `RK45`/`DOP853` listed as options in `simulation.yaml` will be extremely slow or fail).
 * **Feed handling**: PyADM1 restarts the integrator at every influent step; the shipped `main.py` integrates once with a zero-order-hold feed inside the RHS (`max_step = 1 d`). Fine for the daily feed (<1e-6 difference) but wrong for a 15-min feed. The corrected repo restarts per influent interval (`solver.piecewise: true`), which is also ~40 % faster.
-* **Output units of VFA ions**: `acid_base.py` returns `S_va_ion … S_ac_ion` in kmol/m³; PyADM1 and MATLAB report them in kgCOD/m³ (÷208, 160, 112, 64). Not wrong, but `Initial_states.yaml` labels them "M" while holding kgCOD values, and any comparison with the literature needs the conversion (`benchmark_bsm2.py` auto-detects it). Recommend one convention and a unit note in the CSV header.
+* **Output units of VFA ions**: `acid_base.py` returns `S_va_ion … S_ac_ion` in kmol/m³; PyADM1 and MATLAB report them in kgCOD/m³ (÷208, 160, 112, 64). Not wrong, but `initial_states.yaml` labels them "M" while holding kgCOD values, and any comparison with the literature needs the conversion (`benchmark_bsm2.py` auto-detects it). Recommend one convention and a unit note in the CSV header.
 * **Performance**: the bracketing+bisection pH solver evaluates the charge balance ~200 times per RHS call. At 15-min feed resolution the refactored model takes ~14 s per simulated day vs ~1 s for PyADM1's Newton solve. Fine for daily runs (2 min 40 s for 280 d), but a Newton iteration with the bisection as fallback would give a 10–50× speed-up for calibration/hybrid training loops.
 
 ### 2.8 Things that are identical (verified)
@@ -77,7 +77,7 @@ Stoichiometry (all f, Y, C), kinetics (k, K_S, K_I), inhibition functions, pH in
 
 | File in `PyADM1/src/` | What it is |
 |---|---|
-| `digester_influent.csv` | BSM2 digester influent, 280 d at 15 min: 26 concentrations **+ Q (flow, 59–466 m³/d) + T**. |
+| `digester_influent_15min.csv` | BSM2 digester influent, 280 d at 15 min: 26 concentrations **+ Q (flow, 59–466 m³/d) + T**. |
 | `digester_initial.csv` | BSM2 digester steady state = initial condition (the `S_cation ≈ 0`, pH 7.263 state). |
 | `Matlabout_dyn.csv` | **The reference**: MATLAB/Simulink BSM2 ADM1 output on the same influent, all 38 states, 15-min. |
 | `dynamic_out.csv` | PyADM1's own output on the same test. |
@@ -86,7 +86,7 @@ Stoichiometry (all f, Y, C), kinetics (k, K_S, K_I), inhibition functions, pH in
 **What "ring test" means here:** two independent implementations (MATLAB, Python) run the same protocol and their outputs are compared — a *verification* that the code solves the equations correctly. It is not a validation against a real plant (ADM1 itself was validated by Batstone et al. 2002); BSM2 is the community-agreed synthetic protocol for exactly this purpose.
 
 **Protocol** (what `benchmark_bsm2.py` implements):
-1. Initial state = `digester_initial.csv`; influent = `digester_influent.csv`; BSM2 parameters (Rosen & Jeppsson 2006), 35 °C, V_liq 3400, V_gas 300.
+1. Initial state = `digester_initial.csv`; influent = `digester_influent_15min.csv`; BSM2 parameters (Rosen & Jeppsson 2006), 35 °C, V_liq 3400, V_gas 300.
 2. Simulate 0–280 d.
 3. For each of the 38 states: 280-day time-average vs MATLAB (relative error), and nRMSE of daily means over days 30–280.
 4. Tolerances used here: |avg err| ≤ 6 % (pH ≤ 0.05 units); daily nRMSE ≤ 25 % with constant q_ad, ≤ 8–10 % with dynamic Q. The yardstick is PyADM1's own performance (embedded in the script): a refactor must be at least as close to MATLAB as PyADM1 is.

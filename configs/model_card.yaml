@@ -1,0 +1,20 @@
+# Configuration/model_card
+# Identity of the model "family" written into every run package (run.json -> model).
+# See docs/run_package.md.
+
+name: "ADM1"
+implementation: "model-adm1"
+version: "0.1.0"            # set / bump manually at each release of the code
+description: >
+  Modular Python implementation of the Anaerobic Digestion Model No. 1 (ADM1) in its BSM2 form,
+  configured through YAML files, with optional hybrid (ML) plug points.
+model_kind: "dynamic"       # generic STAMM category: ODE/DAE dynamic model
+time_units: "d"
+authors:
+  - "David Camilo Corrales (INRAE / TBI)"
+references:
+  - "Batstone D.J. et al. (2002). Anaerobic Digestion Model No. 1 (ADM1). IWA Scientific and Technical Report No. 13."
+  - "Rosen C., Jeppsson U. (2006). Aspects on ADM1 implementation within the BSM2 framework. Lund University."
+  - "Sadrimajd P. et al. (2021). PyADM1: a Python implementation of Anaerobic Digestion Model No. 1. https://github.com/CaptainFerMag/PyADM1"
+repository: "https://github.com/stamm-4m/model-adm1"
+license: "see LICENSE"

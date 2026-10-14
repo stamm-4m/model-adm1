@@ -10,7 +10,7 @@ flowchart LR
     end
     y -. references .-> a
     y -->|filename stem<br/>= registry name| reg{{load_registry}}
-    reg --> sc["Scenario.yaml<br/>hybrid.use: [foo]"]
+    reg --> sc["scenario.yaml<br/>hybrid.use: [foo]"]
     sc --> rx[(ADM1 reactor<br/>foo replaces<br/>target hook)]
 
     classDef yaml fill:#fff4e6,stroke:#cc6600,color:#663300

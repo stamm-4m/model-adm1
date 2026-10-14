@@ -10,10 +10,10 @@ Date: 04/2026
 Configuration files expected at:
     configs/
     ├── adm1_parameters.yaml     ← intrinsic ADM1 kinetic/stoichiometric parameters
-    ├── Initial_states.yaml      ← initial state vectors (one per named scenario)
-    ├── Influent.yaml            ← influent definition (dynamic CSV or constant values)
-    ├── Scenario.yaml            ← active scenario selector + parameter overrides
-    └── Simulation.yaml          ← ODE solver settings, time horizon, output options
+    ├── initial_states.yaml      ← initial state vectors (one per named scenario)
+    ├── influent.yaml            ← influent definition (dynamic CSV or constant values)
+    ├── scenario.yaml            ← active scenario selector + parameter overrides
+    └── simulation.yaml          ← ODE solver settings, time horizon, output options
 """
 
 import os
@@ -33,6 +33,7 @@ from src.hybrid import apply_hybrid_config
 from src.registry import load_registry, format_registry, format_hooks
 
 from src.acid_base import compute_acid_base_equilibrium, compute_total_cod
+from src.run_export import export_run_package
 
 from plots.plot_biogas import plot_biogas
 from plots.plot_biomass import plot_biomass
@@ -51,14 +52,16 @@ def _handle_introspection_flags(argv) -> bool:
 
 
 def main():
+    _run_started_at = time.time()   # wall-clock start, used by the run package (run.json)
+
     # ============================================================
     # 0. Configuration paths
     # ============================================================
     PARAMS_FILE = "configs/adm1_parameters.yaml"
-    STATES_FILE = "configs/Initial_states.yaml"
-    INFLUENT_FILE = "configs/Influent.yaml"
-    SCENARIO_FILE = "configs/Scenario.yaml"
-    SIMULATION_FILE = "configs/Simulation.yaml"
+    STATES_FILE = "configs/initial_states.yaml"
+    INFLUENT_FILE = "configs/influent.yaml"
+    SCENARIO_FILE = "configs/scenario.yaml"
+    SIMULATION_FILE = "configs/simulation.yaml"
 
 
     # ============================================================
@@ -151,6 +154,7 @@ def main():
         scenarios_file=SCENARIO_FILE,
     )
     y0_full = np.asarray(init_state.get_vector(), dtype=float)
+    declared_initial = init_state.get_dict()   # as declared in initial_states.yaml (run package)
 
     # Load influent data (either time-series from CSV or constant values from YAML)
     influent = Influent(
@@ -160,6 +164,9 @@ def main():
 
     # Instantiate the ADM1 reactor model (holds all ODE equations and process rates)
     reactor = ADM1Reactor(param, constants=None)
+    # Snapshot of the resolved parameters BEFORE integration (the reactor has already recomputed
+    # K_w / K_a_co2 / K_a_IN from T_op; a dynamic Q(t) later mutates q_ad during the run).
+    param_snapshot = dict(param.params)
 
     # Wire optional hybrid hooks from the active scenario (no-op if absent).
     # The hybrid registry is loaded from models/*.yaml — see src/registry.py.
@@ -189,6 +196,7 @@ def main():
     initial_state_dict = reactor.unpack_state(y0_full)
     initial_acid_base = compute_acid_base_equilibrium(initial_state_dict, param)
     y0_full = reactor._apply_acid_base_to_state_vector(y0_full, initial_acid_base)
+    y0_effective = np.array(y0_full, dtype=float)   # effective initial state (run package)
     y0 = reactor.reduce_to_dynamic_state(y0_full)
 
 
@@ -434,7 +442,7 @@ def main():
         raise SystemExit(
             f"solver.method = '{_method}' is an explicit integrator; this ADM1 formulation is stiff and "
             "explicit methods give wrong results (negative concentrations). Use 'BDF' (default), 'Radau' or "
-            "'LSODA'. Set solver.allow_explicit: true in Simulation.yaml to override at your own risk."
+            "'LSODA'. Set solver.allow_explicit: true in simulation.yaml to override at your own risk."
         )
 
     solver_kwargs = dict(
@@ -492,6 +500,7 @@ def main():
         raise RuntimeError(f"Solver failure: {sol.message}")
 
     # GUARD 2: concentrations must stay non-negative; a negative state means numerical failure.
+    run_warnings = []
     _neg = np.min(sol.y)
     if _neg < -1e-9:
         idx = np.unravel_index(np.argmin(sol.y), sol.y.shape)
@@ -502,6 +511,10 @@ def main():
         print("  The integration is numerically unstable — results are NOT valid.")
         print("  Use an implicit solver (BDF/Radau/LSODA) and/or tighter rtol/atol.")
         print("!" * 66 + "\n")
+        run_warnings.append(
+            f"negative concentration {dyn_names[idx[0]]} = {_neg:.3e} at t = {sol.t[idx[1]]:.3f} d: "
+            "integration numerically unstable, results NOT valid"
+        )
 
 
     # ============================================================
@@ -547,6 +560,57 @@ def main():
         out_path = os.path.join(output_dir, output_cfg.get("filename", "dynamic_out.csv"))
         df.to_csv(out_path, index=False)
         print(f"\nResults saved → {out_path} ✅")
+
+    # ------------------------------------------------------------
+    # 10b. Run package for the STAMM registry (docs/run_package.md)
+    #      runs/<run_id>/ = dynamic_out.csv (unchanged) + run.json (+ influent.csv)
+    #      Never blocks the simulation: any error is reported and skipped.
+    # ------------------------------------------------------------
+    package_cfg = output_cfg.get("run_package", {}) or {}
+    if bool(package_cfg.get("enabled", True)):
+        try:
+            _scenario_block = scenario_cfg_full.get("scenarios", {}).get(active_scenario_key, {}) or {}
+            run_dir = export_run_package(
+                df=df,
+                scenario_name=active_scenario_key,
+                scenario_block=_scenario_block,
+                param_snapshot=param_snapshot,
+                declared_initial=declared_initial,
+                effective_initial=y0_effective,
+                state_names=FULL_STATE_NAMES,
+                states_key=init_state._get_active_key(),
+                influent=influent,
+                hybrid_cfg=hybrid_cfg,
+                hybrid_summary=hybrid_summary,
+                solver={
+                    "method": solver_kwargs.get("method"),
+                    "rtol": solver_kwargs.get("rtol"),
+                    "atol": solver_kwargs.get("atol"),
+                    "max_step": solver_kwargs.get("max_step"),
+                    "piecewise": bool(piecewise),
+                },
+                time_info={
+                    "t_start": float(t_start),
+                    "t_end": float(t_end),
+                    "dt_out": float(dt_out),
+                    "units": time_cfg.get("units", "d"),
+                    "n_output_points": int(len(df)),
+                },
+                status={"success": bool(sol.success), "message": str(sol.message), "warnings": run_warnings},
+                started_at=_run_started_at,
+                package_cfg=package_cfg,
+                csv_filename=output_cfg.get("filename", "dynamic_out.csv"),
+                paths={
+                    "params": PARAMS_FILE,
+                    "states": STATES_FILE,
+                    "influent": INFLUENT_FILE,
+                    "scenario": SCENARIO_FILE,
+                    "simulation": SIMULATION_FILE,
+                },
+            )
+            print(f"Run package saved → {run_dir} ✅")
+        except Exception as e:
+            print(f"Run package skipped: {e}")
 
 
     # ============================================================

@@ -6,7 +6,8 @@ Date: 04/2026
 ADM1 — Plot: Biogas production
 ==============================
 Single figure with two panels:
-  - Top panel   : biogas flow q_gas       [m³/d]  — left axis
+  - Top panel   : biogas flow q_gas (wet, T_op, P_gas) and the dry-normal biogas / CH4 flows
+                  [m³/d, + mL/d scale]  — left axis
                   H₂ partial pressure     [bar]   — right axis (trace)
   - Bottom panel: CH₄ partial pressure    [bar]   — left axis (filled area)
                   CO₂ partial pressure    [bar]   — left axis (filled area)
@@ -28,6 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 from src.reactor import ADM1Reactor
 
@@ -78,6 +80,9 @@ def plot_biogas(df, param, save_path: str = None, show: bool = True):
 
     # ── Data ──────────────────────────────────────────────────────────────────
     q_gas, p_ch4, p_co2, p_h2 = _compute_q_gas(df, reactor)
+    gas_out = reactor.compute_gas_outputs(df)
+    q_gas_norm_dry = np.asarray(gas_out["q_gas_norm_dry"], dtype=float)   # dry, 0 C, 1.01325 bar
+    q_ch4_norm_dry = np.asarray(gas_out["q_ch4_norm_dry"], dtype=float)
 
     p_total_gas = p_ch4 + p_co2 + p_h2                  # H2O excluded
     pct_ch4 = np.where(p_total_gas > 0,
@@ -98,22 +103,32 @@ def plot_biogas(df, param, save_path: str = None, show: bool = True):
     # ── Top panel: biogas flow + p_H2 ─────────────────────────────────────────
     ax_top.fill_between(t, q_gas, alpha=0.18, color=C_QGAS)
     l1, = ax_top.plot(t, q_gas, color=C_QGAS, lw=1.8,
-                      label="Biogas flow  $q_{gas}$  [m³/d]")
+                      label="Biogas flow  $q_{gas}$  (wet, T_op, P_gas)")
+    l1n, = ax_top.plot(t, q_gas_norm_dry, color=C_QGAS, lw=1.1, ls=":",
+                       label="Biogas  (dry, normal: 0 °C, 1 atm)")
+    l1c, = ax_top.plot(t, q_ch4_norm_dry, color=C_CH4, lw=1.3,
+                       label="CH₄  (dry, normal)")
 
     ax_top_r.plot(t, p_h2 * 1000, color=C_H2, lw=1.0, ls="--", alpha=0.75,
                   label="$p_{H_2}$  [mbar]")
 
-    ax_top.set_ylabel("Biogas flow  [m³/d]", color=C_QGAS, fontsize=10)
+    ax_top.set_ylabel("Gas flow  [m³/d]", color=C_QGAS, fontsize=10)
     ax_top.tick_params(axis="y", labelcolor=C_QGAS)
+    ax_top.set_ylim(bottom=0)
+    # Same axis in mL/d (linear unit change): normal-dry curves read directly in NmL/d,
+    # which is what lab gas counters report.
+    ax_top_ml = ax_top.secondary_yaxis(-0.13, functions=(lambda x: x * 1e6, lambda x: x / 1e6))
+    ax_top_ml.set_ylabel("[mL/d]  (NmL/d for dry-normal curves)", fontsize=8.5, color="#555555")
+    ax_top_ml.tick_params(axis="y", labelsize=8, labelcolor="#555555")
     ax_top_r.set_ylabel("$p_{H_2}$  [mbar]", color=C_H2, fontsize=9,
                          rotation=-90, labelpad=14)
     ax_top_r.tick_params(axis="y", labelcolor=C_H2)
     ax_top_r.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.3f"))
 
     # Top-panel legend
-    handles_top = [l1,
+    handles_top = [l1, l1n, l1c,
                    Line2D([0],[0], color=C_H2, lw=1.0, ls="--",
-                          label="$p_{H_2}$  [mbar]")]
+                          label="$p_{H_2}$  [mbar]  (right axis)")]
     ax_top.legend(handles=handles_top, fontsize=9, loc="upper left",
                   framealpha=0.7)
     ax_top.grid(True, ls=":", lw=0.6, alpha=0.6)
@@ -144,10 +159,11 @@ def plot_biogas(df, param, save_path: str = None, show: bool = True):
 
     # Reference line at 65 % (typical BSM2 value)
     ax_bot_r.axhline(65, color=C_PCT, lw=0.8, ls=":", alpha=0.6)
-    ax_bot_r.text(t[-1] * 0.02, 65.8, "65 % (BSM2 ref.)",
+    ax_bot_r.text(0.01, 65.8, "65 % (BSM2 ref.)", transform=ax_bot_r.get_yaxis_transform(),
                   color=C_PCT, fontsize=8, alpha=0.8)
 
     ax_bot.set_ylabel("Partial pressure  [bar]", fontsize=10)
+    ax_bot.set_ylim(bottom=0)
     ax_bot.set_xlabel("Time  [d]", fontsize=10)
     ax_bot_r.set_ylabel("Composition  [% CH₄]", fontsize=10,
                          rotation=-90, labelpad=16)
@@ -155,13 +171,15 @@ def plot_biogas(df, param, save_path: str = None, show: bool = True):
     ax_bot_r.tick_params(axis="y", labelcolor=C_PCT)
     ax_bot.grid(True, ls=":", lw=0.6, alpha=0.6)
 
-    # Bottom-panel legend — merged across the two axes
-    handles_bot, labels_bot = ax_bot.get_legend_handles_labels()
-    handles_r,   labels_r   = ax_bot_r.get_legend_handles_labels()
-    ax_bot.legend(handles_bot + [l_pct] + handles_r[1:],
-                  labels_bot  + ["% CH₄  [%]"] + labels_r[1:],
-                  fontsize=9, loc="lower right", framealpha=0.75,
-                  ncol=2)
+    # Bottom-panel legend — built explicitly (each entry exactly once)
+    handles_bot = [
+        Patch(facecolor=C_CH4, alpha=0.55, label="$p_{CH_4}$  [bar]"),
+        Patch(facecolor=C_CO2, alpha=0.55, label="$p_{CO_2}$  [bar]"),
+        Line2D([0], [0], color=C_PCT, lw=1.8, ls="-.", label="CH₄ in dry biogas  [%]"),
+        Patch(facecolor=C_ZONE, alpha=0.55, label="Optimal CH₄ zone  (55–70 %)"),
+        Patch(facecolor=C_WARN, alpha=0.35, label="Alert zone  (< 50 %)"),
+    ]
+    ax_bot.legend(handles=handles_bot, fontsize=9, loc="lower right", framealpha=0.75, ncol=2)
 
     # ── Dynamic annotations ───────────────────────────────────────────────────
     # Max biogas flow
@@ -169,7 +187,7 @@ def plot_biogas(df, param, save_path: str = None, show: bool = True):
     ax_top.annotate(
         f"max {q_gas[idx_max]:.4g} m³/d",
         xy=(t[idx_max], q_gas[idx_max]),
-        xytext=(t[idx_max] + max(t)*0.03, q_gas[idx_max] * 0.92),
+        xytext=(12, -12), textcoords="offset points",
         fontsize=8, color=C_QGAS,
         arrowprops=dict(arrowstyle="->", color=C_QGAS, lw=0.8),
     )
@@ -177,8 +195,8 @@ def plot_biogas(df, param, save_path: str = None, show: bool = True):
     # Mean % CH4 (NaNs ignored)
     pct_mean = np.nanmean(pct_ch4)
     ax_bot_r.axhline(pct_mean, color=C_PCT, lw=0.6, ls="--", alpha=0.5)
-    ax_bot_r.text(t[-1] * 0.02, pct_mean + 1.2,
-                  f"mean {pct_mean:.1f} %",
+    ax_bot_r.text(0.01, pct_mean + 1.2, f"mean {pct_mean:.1f} %",
+                  transform=ax_bot_r.get_yaxis_transform(),
                   color=C_PCT, fontsize=8, alpha=0.8)
 
     # ── Final touches ─────────────────────────────────────────────────────────
@@ -187,6 +205,7 @@ def plot_biogas(df, param, save_path: str = None, show: bool = True):
     for ax in [ax_top_r, ax_bot_r]:
         ax.spines[["top", "left"]].set_visible(False)
 
+    ax_bot.set_xlim(t[0], t[-1])        # shared x: no blank margin before t_start / after t_end
     fig.align_ylabels([ax_top, ax_bot])
     plt.tight_layout()
 

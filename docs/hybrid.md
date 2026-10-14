@@ -49,7 +49,7 @@ flowchart LR
     end
     m1 -.-> a1
 
-    subgraph sc["configs/Scenario.yaml"]
+    subgraph sc["configs/scenario.yaml"]
         s1["my_scenario:<br/>  hybrid:<br/>    enabled: true<br/>    use: [foo, bar]"]
     end
     models --> s1
@@ -157,7 +157,7 @@ to pure ADM1. If it isn't, your wiring has a bug.
 | `hybrid_lr_demo`      | Rho_2 replaced by a Python-callable linear regression            |
 | `hybrid_lr_spec_demo` | Rho_2 replaced by a saved `.npz` artefact (`linear_lstsq` backend) |
 
-Pick one with `active_scenario:` in `configs/Scenario.yaml`, then
+Pick one with `active_scenario:` in `configs/scenario.yaml`, then
 `python main.py`.
 
 ---

@@ -15,7 +15,7 @@ so the tolerances below are those of a model cross-check, not of a numerical ide
 
 Known 1-day offset (--rm-shift-days, default 1): the RM notebook reads the influent with
 pd.read_csv("U_dyn_ref.csv", sep=";") WITHOUT header=None, so the first data row (day 0) is consumed as
-the header and every feed row is applied one day early. Our configs/tatiana_lab_5L_influent.csv keeps the
+the header and every feed row is applied one day early. Our data/influent/lab_5L_2023/influent.csv keeps the
 correct alignment (day 0 = 2023-03-15); the RM trajectory is therefore compared at t + 1 d.
 """
 import argparse

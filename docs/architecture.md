@@ -22,7 +22,7 @@ flowchart LR
 | file | role |
 |---|---|
 | `main.py` | entry point: loads the five YAMLs, builds the reactor, wires hybrid hooks, integrates piecewise over the influent steps, writes CSV + figures |
-| `initial_states.py` | `InitialState`: 38-variable y0 from `Initial_states.yaml` (canonical `STATE_VARIABLES` order) |
+| `initial_states.py` | `InitialState`: 38-variable y0 from `initial_states.yaml` (canonical `STATE_VARIABLES` order) |
 | `src/parameters.py` | `ADM1Parameters`: flattens `adm1_parameters.yaml`, applies scenario `T_op` / `parameter_overrides` |
 | `src/influent.py` | `Influent`: dynamic (CSV, optional `flow_column`) or constant feed; `get(step)` → `{..._in}` dict |
 | `src/reactor.py` | `ADM1Reactor`: inhibitions, 19 process rates, gas transfer, 38 mass balances; T-dependent constants; hybrid hook points |

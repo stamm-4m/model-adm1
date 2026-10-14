@@ -5,7 +5,7 @@ under [`../models/`](../models/) and wired into a demo scenario.
 
 ```mermaid
 flowchart LR
-    py["examples/<br/>foo_example.py"] --> yaml["models/<br/>foo.yaml"] --> sc["Scenario.yaml<br/>hybrid.use: [foo]"]
+    py["examples/<br/>foo_example.py"] --> yaml["models/<br/>foo.yaml"] --> sc["scenario.yaml<br/>hybrid.use: [foo]"]
     classDef code fill:#e6f7f2,stroke:#117a65,color:#0b5345
     classDef yaml fill:#fff4e6,stroke:#cc6600,color:#663300
     class py code
@@ -32,7 +32,7 @@ the same predictions but loaded as a saved `.npz` (`backend: linear_lstsq`)
 | `hybrid_lr_spec_demo` | `rho2_lr_synthetic` (saved `.npz` LR)                    |
 
 ```yaml
-# configs/Scenario.yaml
+# configs/scenario.yaml
 active_scenario: hybrid_demo
 ```
 

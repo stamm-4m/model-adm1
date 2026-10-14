@@ -23,13 +23,13 @@ PyADM1) every state is 1–7 % off — that is not a model error.
 ## A. Steady-state test
 
 ```bash
-# configs/Scenario.yaml → active_scenario : BSM2_steady_state
+# configs/scenario.yaml → active_scenario : BSM2_steady_state
 python main.py
 python tests/benchmark_bsm2_steady.py --results results/dynamic_out.csv
 ```
 Prints the 38 states next to the published BSM2 values and PyADM1's errors; `VERDICT: PASS`
 if every |error| ≤ 1e-5. Reference: `tests/data/bsm2_steady_state.csv`; influent block
-`constant` in `Influent.yaml`; initial state `BSM2_steady_init`.
+`constant` in `influent.yaml`; initial state `BSM2_steady_init`.
 
 ## B. Dynamic ring test
 
@@ -37,16 +37,16 @@ if every |error| ≤ 1e-5. Reference: `tests/data/bsm2_steady_state.csv`; influe
 
 | Item | File | Notes |
 |---|---|---|
-| Influent, 280 d @ 15 min | `configs/digester_influent.csv` | 26 concentrations + flow `Q` (59–466 m³/d) + T |
-| Influent, daily averages | `configs/daily_averages.csv` | derived from the above |
-| Initial digester state | `configs/Initial_states.yaml` (`BSM2`) = `tests/data/digester_initial.csv` | S_cation ≈ 0, pH 7.263 |
+| Influent, 280 d @ 15 min | `data/influent/bsm2/digester_influent_15min.csv` | 26 concentrations + flow `Q` (59–466 m³/d) + T |
+| Influent, daily averages | `data/influent/bsm2/daily_averages.csv` | derived from the above |
+| Initial digester state | `configs/initial_states.yaml` (`BSM2`) = `tests/data/digester_initial.csv` | S_cation ≈ 0, pH 7.263 |
 | Parameters | `configs/adm1_parameters.yaml` | BSM2 values, 35 °C (identical to PyADM1) |
 | **Reference output** | `tests/data/Matlabout_dyn.csv` | MATLAB BSM2 ADM1, all 38 states, 15 min |
 | PyADM1's own result | `tests/data/ringtest.csv` | yardstick |
 
 ### Step by step
 
-1. `configs/Scenario.yaml` → `active_scenario : BSM2_dynamic` (constant q_ad = 178.47,
+1. `configs/scenario.yaml` → `active_scenario : BSM2_dynamic` (constant q_ad = 178.47,
    PyADM1-identical) **or** `BSM2_ringtest` (dynamic Q(t), closer to MATLAB).
 2. `python main.py` → `results/dynamic_out.csv` (280 d, daily).
 3. Score:
@@ -94,7 +94,7 @@ flow, feed in `X_ch/X_pr/X_li/X_I`, calibrated kinetics (`Tatiana_RM_lab_5L`, T_
 code). Reference: `tests/data/tatiana_rm_sim_result.csv`.
 
 ```bash
-# configs/Scenario.yaml → active_scenario : Tatiana_RM_lab_5L
+# configs/scenario.yaml → active_scenario : Tatiana_RM_lab_5L
 python main.py                                                          # ~1 min
 python tests/compare_tatiana_rm.py --results results/dynamic_out.csv    # → PASS
 ```

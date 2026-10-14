@@ -3,14 +3,14 @@
 ## 1. The mental model
 
 ```
-configs/Scenario.yaml            ← THE SWITCHBOARD: one `active_scenario`, each scenario picks
+configs/scenario.yaml            ← THE SWITCHBOARD: one `active_scenario`, each scenario picks
         │                          one entry from each catalogue below (+ optional overrides)
-        ├── initial_states: ──►  configs/Initial_states.yaml   (catalogue of t=0 digester states)
-        ├── influent_mode:  ──►  configs/Influent.yaml         (catalogue of feeds: CSV or constant)
+        ├── initial_states: ──►  configs/initial_states.yaml   (catalogue of t=0 digester states)
+        ├── influent_mode:  ──►  configs/influent.yaml         (catalogue of feeds: CSV or constant)
         ├── T_op / parameter_overrides ─► on top of configs/adm1_parameters.yaml (the ADM1 constants)
         └── hybrid: use: [...] ─► models/*.yaml                (catalogue of ML plug-ins, optional)
 
-configs/Simulation.yaml          ← NUMERICS ONLY: solver, tolerances, horizon, output step, files
+configs/simulation.yaml          ← NUMERICS ONLY: solver, tolerances, horizon, output step, files
 ```
 
 You never edit Python to run a case. You (1) describe a feed / a start state once in the
@@ -28,18 +28,18 @@ python main.py --list-hooks       # what a plug-in may replace (Rho_1…Rho_19, 
 Console: a banner with the scenario, reactor, feed and solver, then daily summaries (pH,
 biogas, inhibitions, COD), then `Success: True`.
 
-## 3. The switchboard — `configs/Scenario.yaml`
+## 3. The switchboard — `configs/scenario.yaml`
 
 ```yaml
 active_scenario : BSM2_dynamic          # <── change only this line to switch cases
 
 scenarios:
   BSM2_dynamic:                         # reference run (constant q_ad), validated vs MATLAB BSM2
-    initial_states: BSM2                # key in Initial_states.yaml
-    influent_mode: dynamic              # key in Influent.yaml
+    initial_states: BSM2                # key in initial_states.yaml
+    influent_mode: dynamic              # key in influent.yaml
     T_op: {value: 308.15, units: "K"}   # operating temperature (Henry & acid-base constants follow it)
     parameter_overrides: {}             # any name from adm1_parameters.yaml, e.g. q_ad: {value: 170}
-    # t_end: 200                        # optional: scenario-level horizon [d], overrides Simulation.yaml
+    # t_end: 200                        # optional: scenario-level horizon [d], overrides simulation.yaml
 ```
 
 Provided scenarios:
@@ -60,14 +60,14 @@ To add a case: copy a block, rename it, change the keys, set `active_scenario` t
 
 ## 4. The catalogues
 
-### 4.1 Feeds — `configs/Influent.yaml`
+### 4.1 Feeds — `configs/influent.yaml`
 Each top-level key is a feed you can reference with `influent_mode:`.
 
 *Dynamic (time series):*
 ```yaml
 my_plant:
   type: dynamic
-  file_path: "configs/my_plant.csv"   # columns: time [d] + the 26 ADM1 influent variables
+  file_path: "data/influent/my_plant/influent.csv"   # columns: time [d] + the 26 ADM1 influent variables
   time_column: "time"                 # S_su … X_I in kgCOD/m3, S_IC/S_IN/S_cation/S_anion in kmol/m3
   flow_column: "Q"                    # OPTIONAL: feed flow [m3/d] per row; omit → constant q_ad
 ```
@@ -82,10 +82,10 @@ my_feed:
   S_su: {value: 0.01, units: "kgCOD.m^-3"}
   ...                                 # all 26 variables must be present (0.0 is fine)
 ```
-Duration for constant feeds: `time.t_end_default_constant` in `Simulation.yaml` (default 30 d;
+Duration for constant feeds: `time.t_end_default_constant` in `simulation.yaml` (default 30 d;
 use ≥ 3–5 × HRT = V_liq/q_ad to reach steady state).
 
-### 4.2 Start states — `configs/Initial_states.yaml`
+### 4.2 Start states — `configs/initial_states.yaml`
 Each top-level key is a 38-variable digester state referenced with `initial_states:`.
 `BSM2` is the Rosen & Jeppsson steady state (S_cation ≈ 0, pH 7.263) — the benchmark start.
 Rules:
@@ -143,7 +143,7 @@ artefact: examples/hybrid_inhibition_example.py:hill_nh3_inhibition
 Activate in a scenario with `hybrid: {enabled: true, use: [nh3_hill, rho11_T_aware]}`.
 Details: `docs/hybrid.md`.
 
-## 5. Numerics — `configs/Simulation.yaml`
+## 5. Numerics — `configs/simulation.yaml`
 | key | default | meaning |
 |---|---|---|
 | `solver.method` | `BDF` | keep implicit (`BDF`, `Radau`, `LSODA`): S_h2 makes the system stiff |
@@ -184,7 +184,7 @@ python main.py && python tests/benchmark_bsm2.py --results results/dynamic_out.c
 
 ### 7b. Cross-test of the no-composite variant (Tatiana's 5 L digester)
 ```bash
-# configs/Scenario.yaml → active_scenario : Tatiana_RM_lab_5L        (~1 min)
+# configs/scenario.yaml → active_scenario : Tatiana_RM_lab_5L        (~1 min)
 python main.py
 python tests/compare_tatiana_rm.py --results results/dynamic_out.csv   # → PASS (|avg| ≤ 1.1 %, nRMSE ≤ 6.1 %)
 ```
@@ -192,13 +192,13 @@ Compares 193 d of the 5 L lab digester (daily feed, dynamic flow, feed in X_ch/X
 calibrated kinetics) with the trajectory of the independent RM_without_Xc code. See `docs/validation.md`.
 
 ## 8. Typical workflows
-* **New feedstock, same digester:** add a block in `Influent.yaml` → scenario with
+* **New feedstock, same digester:** add a block in `influent.yaml` → scenario with
   `initial_states: BSM2`, your `influent_mode`, `q_ad` override if the HRT changes → run.
 * **Temperature study:** duplicate a scenario, change `T_op` (constants follow automatically).
 * **Measured feed composition / solid substrate:** set `use_xc: 0` in `parameter_overrides`, put the
   feed in `X_ch/X_pr/X_li/X_I` with `X_xc = 0` (§4.3b), calibrate `k_hyd_*` — see `Tatiana_RM_lab_5L`.
 * **Calibration:** keep `adm1_parameters.yaml` fixed; put the free parameters in
-  `parameter_overrides`; `configs/Calibration.yaml` documents bounds/objective (framework only,
+  `parameter_overrides`; `configs/calibration.yaml` documents bounds/objective (framework only,
   no optimiser is wired yet).
 * **Hybrid ML:** write the callable in `examples/`, describe it in `models/x.yaml`, list it under
   `hybrid.use` — and check the identity version reproduces the benchmark.

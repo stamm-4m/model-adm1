@@ -18,7 +18,7 @@
 dynamic:
   description: "Dynamic influent from BSM2 daily data"
   type: dynamic
-  file_path: "configs/daily_averages.csv"
+  file_path: "data/influent/bsm2/daily_averages.csv"
   time_column: "time"
   # flow_column: "Q"      # uncomment to drive q_ad from the Q column (m3/d) instead of the constant q_ad
   time_units: "d"
@@ -59,7 +59,7 @@ dynamic:
 dynamic_15min_Q:
   description: "BSM2 digester influent, 15-min resolution, dynamic flow Q(t)"
   type: dynamic
-  file_path: "configs/digester_influent.csv"
+  file_path: "data/influent/bsm2/digester_influent_15min.csv"
   time_column: "time"
   flow_column: "Q"
   time_units: "d"
@@ -68,7 +68,7 @@ dynamic_15min_Q:
 dynamic_Q:
   description: "BSM2 daily-averaged influent with dynamic flow Q(t)"
   type: dynamic
-  file_path: "configs/daily_averages.csv"
+  file_path: "data/influent/bsm2/daily_averages.csv"
   time_column: "time"
   flow_column: "Q"
   time_units: "d"
@@ -160,7 +160,7 @@ pig_slurry:
 tatiana_lab_5L:
   description: "Tatiana lab digester 5 L - daily feed, dynamic flow Q(t), influent in X_ch/X_pr/X_li/X_I"
   type: dynamic
-  file_path: "configs/tatiana_lab_5L_influent.csv"
+  file_path: "data/influent/lab_5L_2023/influent.csv"
   time_column: "time"
   flow_column: "Q"
   time_units: "d"

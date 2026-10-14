@@ -26,16 +26,19 @@ Four panels in one figure:
   Panel 3 — VFA / alkalinity ratio  (stability indicator)
     · Total VFA = S_va_ion + S_bu_ion + S_pro_ion + S_ac_ion  [mol/L]
     · Alkalinity proxy = S_hco3_ion                            [M]
-    · VFA/Alk ratio  [-]
+    · VFA/Alk ratio  [-]  MOLAR ratio (mol VFA / mol HCO3-)
     · Zones: < 0.3 stable | 0.3–0.6 caution | > 0.6 acidification risk
+      The 0.3 / 0.6 thresholds come from the FOS/TAC titration (mg HAc / mg CaCO3);
+      FOS/TAC ~= 1.2 x this molar ratio (60 g/mol HAc vs 50 g/eq CaCO3), so the zones are approximate.
     → This is the best early operational indicator:
       the ratio rises several days before pH drops.
 
   Panel 4 — Inorganic nitrogen and free ammonia
     · S_IN total              [kmol N/m³]  — left axis
-    · S_nh3 (free NH₃)        [M]          — left axis, thick line
-    · S_nh4_ion (NH₄⁺)        [M]          — left axis, dashed
-    · K_I_nh3 threshold        [M]          — red dashed line
+    · S_nh4_ion (NH₄⁺)        [kmol N/m³]  — left axis, dashed (same scale as S_IN)
+    · S_nh3 (free NH₃)        [mM]         — right axis, thick line
+    · K_I_nh3 threshold        [mM]         — right axis, red dashed line
+      (NH3 is ~50x smaller than NH4+, so it gets its own axis next to its threshold)
     → Free NH₃ is the inhibitory form (not NH₄⁺). Its concentration
       depends on BOTH pH and temperature — hence the coupling.
 
@@ -154,10 +157,11 @@ def plot_pH_alkalinity(df, param, save_path: str = None, show: bool = True):
     # Model reference lines
     ax_ph.axhline(pH_LL, color=C_PH, lw=0.9, ls="--", alpha=0.5)
     ax_ph.axhline(pH_UL, color=C_PH, lw=0.9, ls="--", alpha=0.5)
-    ax_ph.text(t_max * 0.01, pH_LL - 0.12,
-               f"pH_LL_ac = {pH_LL:.1f}", fontsize=8, color=C_PH, alpha=0.7)
-    ax_ph.text(t_max * 0.01, pH_UL + 0.06,
-               f"pH_UL_ac = {pH_UL:.1f}", fontsize=8, color=C_PH, alpha=0.7)
+    ytr = ax_ph.get_yaxis_transform()     # x in axes fraction, y in data
+    ax_ph.text(0.01, pH_LL - 0.12, f"pH_LL_ac = {pH_LL:.1f}", transform=ytr,
+               fontsize=8, color=C_PH, alpha=0.7)
+    ax_ph.text(0.01, pH_UL + 0.06, f"pH_UL_ac = {pH_UL:.1f}", transform=ytr,
+               fontsize=8, color=C_PH, alpha=0.7)
 
     # pH curve
     ax_ph.plot(t, pH, color=C_PH, lw=2.0, zorder=5, label="pH")
@@ -178,9 +182,8 @@ def plot_pH_alkalinity(df, param, save_path: str = None, show: bool = True):
     pH_min  = np.nanmin(pH)
     pH_max  = np.nanmax(pH)
     ax_ph.axhline(pH_mean, color=C_PH, lw=0.7, ls=":", alpha=0.6)
-    ax_ph.text(t_max * 0.98, pH_mean + 0.04,
-               f"mean {pH_mean:.2f}", fontsize=8, color=C_PH,
-               ha="right", alpha=0.8)
+    ax_ph.text(0.98, pH_mean + 0.04, f"mean {pH_mean:.2f}", transform=ytr,
+               fontsize=8, color=C_PH, ha="right", alpha=0.8)
 
     _style_ax(ax_ph,
               ylabel="pH  [—]",
@@ -216,8 +219,8 @@ def plot_pH_alkalinity(df, param, save_path: str = None, show: bool = True):
     ax_alk_r.plot(t, ratio_hco3, color=C_RATIO_C, lw=1.2, ls="-.",
                   alpha=0.8, label="HCO₃⁻ / IC  [%]")
     ax_alk_r.axhline(80, color=C_RATIO_C, lw=0.7, ls=":", alpha=0.5)
-    ax_alk_r.text(t_max * 0.01, 81,
-                  "80 % (effective buffering threshold)",
+    ax_alk_r.text(0.01, 81, "80 % (effective buffering threshold)",
+                  transform=ax_alk_r.get_yaxis_transform(),
                   fontsize=7.5, color=C_RATIO_C, alpha=0.75)
     ax_alk_r.set_ylabel("HCO₃⁻ / IC  [%]", fontsize=9,
                          rotation=-90, labelpad=14, color=C_RATIO_C)
@@ -230,7 +233,8 @@ def plot_pH_alkalinity(df, param, save_path: str = None, show: bool = True):
                               label="HCO₃⁻ / IC  [%]")]
     ax_alk.legend(handles=handles_alk, fontsize=8.5, loc="upper right",
                   framealpha=0.85)
-    _style_ax(ax_alk, ylabel="Concentration  [kmol/m³ or M]", hide_x=True)
+    _style_ax(ax_alk, ylabel="Concentration  [kmol/m³ = M]", hide_x=True)
+    ax_alk.set_ylim(bottom=0)
 
     # ═══════════════════════════════════════════════════════════════════════════
     # PANEL 3 — VFA / alkalinity ratio
@@ -250,14 +254,15 @@ def plot_pH_alkalinity(df, param, save_path: str = None, show: bool = True):
 
     # Ratio on the right axis
     l_ratio, = ax_vfa_r.plot(t, ratio_vfa, color=C_RATIO_V, lw=2.0, zorder=5,
-                              label="VFA/Alk ratio  [—]")
+                              label="VFA/Alk molar ratio  [—]")
     ax_vfa_r.axhline(0.3, color=C_RATIO_V, lw=0.8, ls=":", alpha=0.7)
     ax_vfa_r.axhline(0.6, color=C_RATIO_V, lw=0.8, ls=":", alpha=0.7)
-    ax_vfa_r.text(t_max * 0.98, 0.31, "0.3  stable",
+    vtr = ax_vfa_r.get_yaxis_transform()
+    ax_vfa_r.text(0.98, 0.31, "0.3  stable", transform=vtr,
                   ha="right", fontsize=7.5, color=C_RATIO_V, alpha=0.8)
-    ax_vfa_r.text(t_max * 0.98, 0.61, "0.6  risk",
+    ax_vfa_r.text(0.98, 0.61, "0.6  risk", transform=vtr,
                   ha="right", fontsize=7.5, color=C_RATIO_V, alpha=0.8)
-    ax_vfa_r.set_ylabel("VFA / alkalinity ratio  [—]", fontsize=9,
+    ax_vfa_r.set_ylabel("VFA / HCO₃⁻  molar ratio  [—]\n(≈ FOS/TAC ÷ 1.2)", fontsize=9,
                          rotation=-90, labelpad=14, color=C_RATIO_V)
     ax_vfa_r.tick_params(axis="y", labelcolor=C_RATIO_V)
     ax_vfa_r.set_ylim(0, max(1.5, np.nanpercentile(ratio_vfa, 98) * 1.3))
@@ -265,13 +270,14 @@ def plot_pH_alkalinity(df, param, save_path: str = None, show: bool = True):
 
     handles_vfa = [l_vfa, l_alk,
                    plt.Line2D([0],[0], color=C_RATIO_V, lw=2,
-                              label="VFA / Alk ratio  [—]"),
+                              label="VFA / HCO₃⁻ molar ratio  (≈ FOS/TAC ÷ 1.2)"),
                    mpatches.Patch(color=Z_STABLE, label="Stable    (< 0.3)"),
                    mpatches.Patch(color=Z_WARN,   label="Caution   (0.3–0.6)"),
                    mpatches.Patch(color=Z_RISK,   label="Risk      (> 0.6)")]
     ax_vfa.legend(handles=handles_vfa, fontsize=8.5, loc="upper right",
                   framealpha=0.85, ncol=2)
     _style_ax(ax_vfa, ylabel="Concentration  [M]", hide_x=True)
+    ax_vfa.set_ylim(bottom=0)
 
     # ═══════════════════════════════════════════════════════════════════════════
     # PANEL 4 — Inorganic nitrogen and free NH3
@@ -282,44 +288,48 @@ def plot_pH_alkalinity(df, param, save_path: str = None, show: bool = True):
     l_in, = ax_n.plot(t, S_IN, color=C_IN, lw=1.4, ls="--",
                       label="$S_{IN}$ total inorganic nitrogen  [kmol N/m³]")
 
-    # NH3 and NH4 on the right axis (M)
-    l_nh4, = ax_n_r.plot(t, S_nh4, color=C_NH4, lw=1.2, ls="--", alpha=0.7,
-                          label="$S_{NH_4^+}$ ammonium  [M]")
-    l_nh3, = ax_n_r.plot(t, S_nh3, color=C_NH3, lw=2.2,
-                          label="$S_{NH_3}$ free ammonia  [M]")
+    # NH4+ on the LEFT axis (same unit and order of magnitude as S_IN)
+    l_nh4, = ax_n.plot(t, S_nh4, color=C_NH4, lw=1.2, ls=":", alpha=0.9,
+                       label="$S_{NH_4^+}$ ammonium  [kmol N/m³]")
 
-    # Inhibition threshold K_I_nh3
-    ax_n_r.axhline(K_I_nh3, color="#c0392b", lw=1.0, ls="--", alpha=0.85)
-    ax_n_r.text(t_max * 0.01, K_I_nh3 * 1.06,
-                f"$K_{{I,NH_3}}$ = {K_I_nh3:.4f} M  (inhibition threshold)",
+    # Free NH3 and its inhibition threshold on the RIGHT axis, in mM (= mol/m³)
+    l_nh3, = ax_n_r.plot(t, S_nh3 * 1e3, color=C_NH3, lw=2.2,
+                          label="$S_{NH_3}$ free ammonia  [mM]  (right axis)")
+    ax_n_r.axhline(K_I_nh3 * 1e3, color="#c0392b", lw=1.0, ls="--", alpha=0.85)
+    ax_n_r.text(0.01, K_I_nh3 * 1e3 * 1.06,
+                f"$K_{{I,NH_3}}$ = {K_I_nh3 * 1e3:.3g} mM  (inhibition constant)",
+                transform=ax_n_r.get_yaxis_transform(),
                 fontsize=8, color="#c0392b", alpha=0.9)
+    ax_n_r.set_ylim(0, 1.25 * max(np.nanmax(S_nh3) * 1e3, K_I_nh3 * 1e3))
 
     # Annotation: % of time NH3 exceeds the threshold
     over_threshold = np.sum(S_nh3 > K_I_nh3)
     pct_over = 100 * over_threshold / max(len(S_nh3), 1)
     if pct_over > 0:
         ax_n_r.text(0.98, 0.92,
-                    f"NH₃ > threshold: {pct_over:.1f} % of time",
+                    f"NH₃ > K_I (inhibition factor < 0.5): {pct_over:.1f} % of time",
                     transform=ax_n_r.transAxes,
                     ha="right", va="top", fontsize=8.5,
                     color="#c0392b",
                     bbox=dict(boxstyle="round,pad=0.3",
                               facecolor="white", edgecolor="none", alpha=0.8))
 
-    ax_n_r.set_ylabel("$NH_3$ / $NH_4^+$  [M]", fontsize=9,
+    ax_n_r.set_ylabel("Free $NH_3$  [mM]", fontsize=9,
                        rotation=-90, labelpad=14, color=C_NH3)
     ax_n_r.tick_params(axis="y", labelcolor=C_NH3)
     ax_n_r.spines[["top", "left"]].set_visible(False)
 
     handles_n = [l_in, l_nh3, l_nh4,
                  plt.Line2D([0],[0], color="#c0392b", lw=1.0, ls="--",
-                            label=f"Threshold $K_{{I,NH_3}}$ = {K_I_nh3:.4f} M")]
+                            label=f"$K_{{I,NH_3}}$ = {K_I_nh3 * 1e3:.3g} mM  (right axis)")]
     ax_n.legend(handles=handles_n, fontsize=8.5, loc="upper right",
                 framealpha=0.85)
-    _style_ax(ax_n, ylabel="$S_{IN}$  [kmol N/m³]",
+    _style_ax(ax_n, ylabel="$S_{IN}$, $NH_4^+$  [kmol N/m³]",
               xlabel="Time  [d]", hide_x=False)
+    ax_n.set_ylim(bottom=0)
 
     # ── Final touches ─────────────────────────────────────────────────────────
+    ax_n.set_xlim(t[0], t[-1])          # shared x: no blank margin before t_start / after t_end
     fig.align_ylabels([ax_ph, ax_alk, ax_vfa, ax_n])
     plt.tight_layout()
 

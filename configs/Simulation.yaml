@@ -39,6 +39,10 @@ output:
   show_figures: false    # set true to open the matplotlib windows
   output_dir: "results/"
   filename: "dynamic_out.csv"
+  run_package:            # standard package for the STAMM registry (docs/run_package.md)
+    enabled: true         # runs/<run_id>/ = dynamic_out.csv (unchanged) + run.json (+ influent.csv)
+    runs_dir: "runs/"     # one sub-folder per run, never overwritten
+    zip: true             # also write runs/<run_id>.zip (flat archive, ready to upload)
   state_variables:        # Variables to save (null = all)
     - S_su
     - S_aa

@@ -1,0 +1,1777 @@
+{
+  "schema_version": "1.0",
+  "model": {
+    "name": "ADM1",
+    "implementation": "model-adm1",
+    "version": "0.1.0",
+    "model_kind": "dynamic",
+    "description": "Modular Python implementation of the Anaerobic Digestion Model No. 1 (ADM1) in its BSM2 form, configured through YAML files, with optional hybrid (ML) plug points.",
+    "time_units": "d",
+    "authors": [
+      "David Camilo Corrales (INRAE / TBI)"
+    ],
+    "references": [
+      "Batstone D.J. et al. (2002). Anaerobic Digestion Model No. 1 (ADM1). IWA Scientific and Technical Report No. 13.",
+      "Rosen C., Jeppsson U. (2006). Aspects on ADM1 implementation within the BSM2 framework. Lund University.",
+      "Sadrimajd P. et al. (2021). PyADM1: a Python implementation of Anaerobic Digestion Model No. 1. https://github.com/CaptainFerMag/PyADM1"
+    ],
+    "repository": "https://github.com/stamm-4m/model-adm1",
+    "license": "see LICENSE",
+    "code_ref": {
+      "git_commit": "a3a7dfeb705555ee7c972505d512a9569e7a4112",
+      "git_branch": "Scenarios-without-composite-X_c",
+      "uncommitted_changes": true,
+      "source_sha256": "4e27c62eaf7f113c9751717fc8bae7e9cb980fa1fe74a1f317762016572ed190",
+      "source_files": [
+        "main.py",
+        "initial_states.py",
+        "src/acid_base.py",
+        "src/hybrid.py",
+        "src/influent.py",
+        "src/parameters.py",
+        "src/reactor.py",
+        "src/registry.py",
+        "src/run_export.py"
+      ]
+    }
+  },
+  "calibration": {
+    "scenario": {
+      "name": "Tatiana_RM_lab_5L",
+      "description": "Tatiana's 5 L lab digester, 193 d (from 2023-03-15), daily feed with dynamic flow, feed characterised in X_ch/X_pr/X_li/X_I, calibrated kinetics of RM_without_Xc/parameters_dyn.txt. Reproduces the RM_without_Xc notebook run AS IS (T_op fixed at 35 C although the data are at 39 C - that is what the original code does). Cross-test: python tests/compare_tatiana_rm.py --results results/dynamic_out.csv",
+      "initial_states": "Tatiana_lab_5L",
+      "influent_mode": "tatiana_lab_5L",
+      "t_end": 193
+    },
+    "parameters": [
+      {
+        "name": "R",
+        "group": "constants",
+        "value": 0.083145,
+        "units": "bar.M^-1.K^-1",
+        "description": "Universal gas constant",
+        "source": "default"
+      },
+      {
+        "name": "T_base",
+        "group": "constants",
+        "value": 298.15,
+        "units": "K",
+        "description": "Reference temperature",
+        "source": "default"
+      },
+      {
+        "name": "p_atm",
+        "group": "constants",
+        "value": 1.013,
+        "units": "bar",
+        "description": "Atmospheric pressure",
+        "source": "default"
+      },
+      {
+        "name": "f_sI_xc",
+        "group": "stoichiometric_parameters",
+        "value": 0.1,
+        "units": "-",
+        "description": "Soluble-inert fraction of total COD",
+        "source": "default"
+      },
+      {
+        "name": "f_xI_xc",
+        "group": "stoichiometric_parameters",
+        "value": 0.2,
+        "units": "-",
+        "description": "Particulate-inert fraction of total COD",
+        "source": "default"
+      },
+      {
+        "name": "f_ch_xc",
+        "group": "stoichiometric_parameters",
+        "value": 0.2,
+        "units": "-",
+        "description": "Carbohydrate fraction of total COD",
+        "source": "default"
+      },
+      {
+        "name": "f_pr_xc",
+        "group": "stoichiometric_parameters",
+        "value": 0.2,
+        "units": "-",
+        "description": "Protein fraction of total COD",
+        "source": "default"
+      },
+      {
+        "name": "f_li_xc",
+        "group": "stoichiometric_parameters",
+        "value": 0.3,
+        "units": "-",
+        "description": "Lipid fraction of total COD",
+        "source": "default"
+      },
+      {
+        "name": "N_xc",
+        "group": "stoichiometric_parameters",
+        "value": 0.0026857142857,
+        "units": "kmol N.kg^-1COD",
+        "description": "Nitrogen content of composite particulate matter (0.0376/14)",
+        "source": "default"
+      },
+      {
+        "name": "N_I",
+        "group": "stoichiometric_parameters",
+        "value": 0.0042857142857,
+        "units": "kmol N.kg^-1COD",
+        "description": "Nitrogen content of particulate inerts (0.06/14)",
+        "source": "default"
+      },
+      {
+        "name": "N_aa",
+        "group": "stoichiometric_parameters",
+        "value": 0.007,
+        "units": "kmol N.kg^-1COD",
+        "description": "Nitrogen content of amino acids",
+        "source": "default"
+      },
+      {
+        "name": "N_bac",
+        "group": "stoichiometric_parameters",
+        "value": 0.0057142857143,
+        "units": "kmol N.kg^-1COD",
+        "description": "Nitrogen content of bacteria (0.08/14)",
+        "source": "default"
+      },
+      {
+        "name": "C_xc",
+        "group": "stoichiometric_parameters",
+        "value": 0.02786,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of composite particulate matter",
+        "source": "default"
+      },
+      {
+        "name": "C_sI",
+        "group": "stoichiometric_parameters",
+        "value": 0.03,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of soluble inerts",
+        "source": "default"
+      },
+      {
+        "name": "C_ch",
+        "group": "stoichiometric_parameters",
+        "value": 0.0313,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of carbohydrates",
+        "source": "default"
+      },
+      {
+        "name": "C_pr",
+        "group": "stoichiometric_parameters",
+        "value": 0.03,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of proteins",
+        "source": "default"
+      },
+      {
+        "name": "C_li",
+        "group": "stoichiometric_parameters",
+        "value": 0.022,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of lipids",
+        "source": "default"
+      },
+      {
+        "name": "C_xI",
+        "group": "stoichiometric_parameters",
+        "value": 0.03,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of particulate inerts",
+        "source": "default"
+      },
+      {
+        "name": "C_su",
+        "group": "stoichiometric_parameters",
+        "value": 0.0313,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of sugars",
+        "source": "default"
+      },
+      {
+        "name": "C_aa",
+        "group": "stoichiometric_parameters",
+        "value": 0.03,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of amino acids",
+        "source": "default"
+      },
+      {
+        "name": "C_fa",
+        "group": "stoichiometric_parameters",
+        "value": 0.0217,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of fatty acids",
+        "source": "default"
+      },
+      {
+        "name": "C_bu",
+        "group": "stoichiometric_parameters",
+        "value": 0.025,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of butyrate",
+        "source": "default"
+      },
+      {
+        "name": "C_pro",
+        "group": "stoichiometric_parameters",
+        "value": 0.0268,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of propionate",
+        "source": "default"
+      },
+      {
+        "name": "C_ac",
+        "group": "stoichiometric_parameters",
+        "value": 0.0313,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of acetate",
+        "source": "default"
+      },
+      {
+        "name": "C_bac",
+        "group": "stoichiometric_parameters",
+        "value": 0.0313,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of bacteria",
+        "source": "default"
+      },
+      {
+        "name": "C_va",
+        "group": "stoichiometric_parameters",
+        "value": 0.024,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of valerate",
+        "source": "default"
+      },
+      {
+        "name": "C_ch4",
+        "group": "stoichiometric_parameters",
+        "value": 0.0156,
+        "units": "kmol C.kg^-1COD",
+        "description": "Carbon content of methane",
+        "source": "default"
+      },
+      {
+        "name": "f_fa_li",
+        "group": "stoichiometric_parameters",
+        "value": 0.95,
+        "units": "-",
+        "description": "Lipid fraction converted to fatty acids",
+        "source": "default"
+      },
+      {
+        "name": "f_h2_su",
+        "group": "stoichiometric_parameters",
+        "value": 0.19,
+        "units": "-",
+        "description": "H2 fraction produced from sugars",
+        "source": "default"
+      },
+      {
+        "name": "f_bu_su",
+        "group": "stoichiometric_parameters",
+        "value": 0.13,
+        "units": "-",
+        "description": "Butyrate fraction produced from sugars",
+        "source": "default"
+      },
+      {
+        "name": "f_pro_su",
+        "group": "stoichiometric_parameters",
+        "value": 0.27,
+        "units": "-",
+        "description": "Propionate fraction produced from sugars",
+        "source": "default"
+      },
+      {
+        "name": "f_ac_su",
+        "group": "stoichiometric_parameters",
+        "value": 0.41,
+        "units": "-",
+        "description": "Acetate fraction produced from sugars",
+        "source": "default"
+      },
+      {
+        "name": "f_h2_aa",
+        "group": "stoichiometric_parameters",
+        "value": 0.06,
+        "units": "-",
+        "description": "H2 fraction produced from amino acids",
+        "source": "default"
+      },
+      {
+        "name": "f_va_aa",
+        "group": "stoichiometric_parameters",
+        "value": 0.23,
+        "units": "-",
+        "description": "Valerate fraction produced from amino acids",
+        "source": "default"
+      },
+      {
+        "name": "f_bu_aa",
+        "group": "stoichiometric_parameters",
+        "value": 0.26,
+        "units": "-",
+        "description": "Butyrate fraction produced from amino acids",
+        "source": "default"
+      },
+      {
+        "name": "f_pro_aa",
+        "group": "stoichiometric_parameters",
+        "value": 0.05,
+        "units": "-",
+        "description": "Propionate fraction produced from amino acids",
+        "source": "default"
+      },
+      {
+        "name": "f_ac_aa",
+        "group": "stoichiometric_parameters",
+        "value": 0.4,
+        "units": "-",
+        "description": "Acetate fraction produced from amino acids",
+        "source": "default"
+      },
+      {
+        "name": "Y_su",
+        "group": "stoichiometric_parameters",
+        "value": 0.1,
+        "units": "-",
+        "description": "Yield coefficient for sugars",
+        "source": "default"
+      },
+      {
+        "name": "Y_aa",
+        "group": "stoichiometric_parameters",
+        "value": 0.08,
+        "units": "-",
+        "description": "Yield coefficient for amino acids",
+        "source": "default"
+      },
+      {
+        "name": "Y_fa",
+        "group": "stoichiometric_parameters",
+        "value": 0.06,
+        "units": "-",
+        "description": "Yield coefficient for fatty acids",
+        "source": "default"
+      },
+      {
+        "name": "Y_c4",
+        "group": "stoichiometric_parameters",
+        "value": 0.06,
+        "units": "-",
+        "description": "Yield coefficient for butyrate/valerate",
+        "source": "default"
+      },
+      {
+        "name": "Y_pro",
+        "group": "stoichiometric_parameters",
+        "value": 0.04,
+        "units": "-",
+        "description": "Yield coefficient for propionate",
+        "source": "default"
+      },
+      {
+        "name": "Y_ac",
+        "group": "stoichiometric_parameters",
+        "value": 0.05,
+        "units": "-",
+        "description": "Yield coefficient for acetate",
+        "source": "default"
+      },
+      {
+        "name": "Y_h2",
+        "group": "stoichiometric_parameters",
+        "value": 0.06,
+        "units": "-",
+        "description": "Yield coefficient for hydrogen",
+        "source": "default"
+      },
+      {
+        "name": "use_xc",
+        "group": "disintegration",
+        "value": 0.0,
+        "units": "-",
+        "description": "1 = with composite X_xc and disintegration (BSM2); 0 = without (Batstone 2015)",
+        "source": "scenario",
+        "default_value": 1.0,
+        "override_note": "No disintegration (RM_without_Xc)"
+      },
+      {
+        "name": "f_sI_xb",
+        "group": "disintegration",
+        "value": 0.1,
+        "units": "-",
+        "description": "Soluble-inert fraction of decayed biomass (use_xc = 0 only)",
+        "source": "default"
+      },
+      {
+        "name": "f_ch_xb",
+        "group": "disintegration",
+        "value": 0.2,
+        "units": "-",
+        "description": "Carbohydrate fraction of decayed biomass (use_xc = 0 only)",
+        "source": "default"
+      },
+      {
+        "name": "f_pr_xb",
+        "group": "disintegration",
+        "value": 0.2,
+        "units": "-",
+        "description": "Protein fraction of decayed biomass (use_xc = 0 only)",
+        "source": "default"
+      },
+      {
+        "name": "f_li_xb",
+        "group": "disintegration",
+        "value": 0.3,
+        "units": "-",
+        "description": "Lipid fraction of decayed biomass (use_xc = 0 only)",
+        "source": "default"
+      },
+      {
+        "name": "f_xI_xb",
+        "group": "disintegration",
+        "value": 0.2,
+        "units": "-",
+        "description": "Particulate-inert fraction of decayed biomass (use_xc = 0 only)",
+        "source": "default"
+      },
+      {
+        "name": "gas_law_patm",
+        "group": "gas_flow",
+        "value": 1.0,
+        "units": "-",
+        "description": "0 = BSM2 overpressure law k_p(P_gas - P_atm); 1 = headspace at P_atm (Batstone 2002)",
+        "source": "scenario",
+        "default_value": 0.0,
+        "override_note": "Headspace at P_atm: same q_gas law as RM_without_Xc (k_p not used)"
+      },
+      {
+        "name": "k_dis",
+        "group": "biochemical_parameters",
+        "value": 0.5,
+        "units": "d^-1",
+        "description": "Disintegration rate",
+        "source": "default"
+      },
+      {
+        "name": "k_hyd_ch",
+        "group": "biochemical_parameters",
+        "value": 0.235,
+        "units": "d^-1",
+        "description": "Carbohydrate hydrolysis rate",
+        "source": "scenario",
+        "default_value": 10.0,
+        "override_note": "Calibrated (RM parameters_dyn.txt)"
+      },
+      {
+        "name": "k_hyd_pr",
+        "group": "biochemical_parameters",
+        "value": 0.4006,
+        "units": "d^-1",
+        "description": "Protein hydrolysis rate",
+        "source": "scenario",
+        "default_value": 10.0,
+        "override_note": "Calibrated"
+      },
+      {
+        "name": "k_hyd_li",
+        "group": "biochemical_parameters",
+        "value": 0.31,
+        "units": "d^-1",
+        "description": "Lipid hydrolysis rate",
+        "source": "scenario",
+        "default_value": 10.0,
+        "override_note": "Calibrated"
+      },
+      {
+        "name": "K_S_IN",
+        "group": "biochemical_parameters",
+        "value": 0.0001,
+        "units": "M",
+        "description": "Half-saturation constant for inorganic nitrogen",
+        "source": "default"
+      },
+      {
+        "name": "k_m_su",
+        "group": "biochemical_parameters",
+        "value": 30.0,
+        "units": "d^-1",
+        "description": "Maximum uptake rate for sugars",
+        "source": "default"
+      },
+      {
+        "name": "K_S_su",
+        "group": "biochemical_parameters",
+        "value": 0.5,
+        "units": "kgCOD.m^-3",
+        "description": "Half-saturation constant for sugars",
+        "source": "default"
+      },
+      {
+        "name": "k_m_aa",
+        "group": "biochemical_parameters",
+        "value": 50.0,
+        "units": "d^-1",
+        "description": "Maximum uptake rate for amino acids",
+        "source": "default"
+      },
+      {
+        "name": "K_S_aa",
+        "group": "biochemical_parameters",
+        "value": 0.3,
+        "units": "kgCOD.m^-3",
+        "description": "Half-saturation constant for amino acids",
+        "source": "default"
+      },
+      {
+        "name": "k_m_fa",
+        "group": "biochemical_parameters",
+        "value": 6.0,
+        "units": "d^-1",
+        "description": "Maximum uptake rate for fatty acids",
+        "source": "default"
+      },
+      {
+        "name": "K_S_fa",
+        "group": "biochemical_parameters",
+        "value": 0.4,
+        "units": "kgCOD.m^-3",
+        "description": "Half-saturation constant for fatty acids",
+        "source": "default"
+      },
+      {
+        "name": "k_m_c4",
+        "group": "biochemical_parameters",
+        "value": 13.7,
+        "units": "d^-1",
+        "description": "Maximum uptake rate for butyrate/valerate",
+        "source": "scenario",
+        "default_value": 20.0,
+        "override_note": "Calibrated"
+      },
+      {
+        "name": "K_S_c4",
+        "group": "biochemical_parameters",
+        "value": 0.2,
+        "units": "kgCOD.m^-3",
+        "description": "Half-saturation constant for butyrate/valerate",
+        "source": "default"
+      },
+      {
+        "name": "k_m_pro",
+        "group": "biochemical_parameters",
+        "value": 5.5,
+        "units": "d^-1",
+        "description": "Maximum uptake rate for propionate",
+        "source": "scenario",
+        "default_value": 13.0,
+        "override_note": "Calibrated"
+      },
+      {
+        "name": "K_S_pro",
+        "group": "biochemical_parameters",
+        "value": 0.1,
+        "units": "kgCOD.m^-3",
+        "description": "Half-saturation constant for propionate",
+        "source": "default"
+      },
+      {
+        "name": "k_m_ac",
+        "group": "biochemical_parameters",
+        "value": 5.0,
+        "units": "d^-1",
+        "description": "Maximum uptake rate for acetate",
+        "source": "scenario",
+        "default_value": 8.0,
+        "override_note": "Calibrated"
+      },
+      {
+        "name": "K_S_ac",
+        "group": "biochemical_parameters",
+        "value": 0.15,
+        "units": "kgCOD.m^-3",
+        "description": "Half-saturation constant for acetate",
+        "source": "default"
+      },
+      {
+        "name": "k_m_h2",
+        "group": "biochemical_parameters",
+        "value": 35.0,
+        "units": "d^-1",
+        "description": "Maximum uptake rate for hydrogen",
+        "source": "default"
+      },
+      {
+        "name": "K_S_h2",
+        "group": "biochemical_parameters",
+        "value": 3e-05,
+        "units": "kgCOD.m^-3",
+        "description": "Half-saturation constant for hydrogen",
+        "source": "scenario",
+        "default_value": 7e-06,
+        "override_note": "Calibrated"
+      },
+      {
+        "name": "k_dec_X_su",
+        "group": "biochemical_parameters",
+        "value": 0.02,
+        "units": "d^-1",
+        "description": "Sugar-biomass decay rate",
+        "source": "default"
+      },
+      {
+        "name": "k_dec_X_aa",
+        "group": "biochemical_parameters",
+        "value": 0.02,
+        "units": "d^-1",
+        "description": "Amino-acid-biomass decay rate",
+        "source": "default"
+      },
+      {
+        "name": "k_dec_X_fa",
+        "group": "biochemical_parameters",
+        "value": 0.02,
+        "units": "d^-1",
+        "description": "Fatty-acid-biomass decay rate",
+        "source": "default"
+      },
+      {
+        "name": "k_dec_X_c4",
+        "group": "biochemical_parameters",
+        "value": 0.02,
+        "units": "d^-1",
+        "description": "Butyrate/valerate-biomass decay rate",
+        "source": "default"
+      },
+      {
+        "name": "k_dec_X_pro",
+        "group": "biochemical_parameters",
+        "value": 0.02,
+        "units": "d^-1",
+        "description": "Propionate-biomass decay rate",
+        "source": "default"
+      },
+      {
+        "name": "k_dec_X_ac",
+        "group": "biochemical_parameters",
+        "value": 0.02,
+        "units": "d^-1",
+        "description": "Acetate-biomass decay rate",
+        "source": "default"
+      },
+      {
+        "name": "k_dec_X_h2",
+        "group": "biochemical_parameters",
+        "value": 0.02,
+        "units": "d^-1",
+        "description": "Hydrogen-biomass decay rate",
+        "source": "default"
+      },
+      {
+        "name": "pH_UL_aa",
+        "group": "inhibition_parameters",
+        "value": 5.5,
+        "units": "-",
+        "description": "Upper pH limit for amino-acid degraders",
+        "source": "default"
+      },
+      {
+        "name": "pH_LL_aa",
+        "group": "inhibition_parameters",
+        "value": 4.0,
+        "units": "-",
+        "description": "Lower pH limit for amino-acid degraders",
+        "source": "default"
+      },
+      {
+        "name": "pH_UL_ac",
+        "group": "inhibition_parameters",
+        "value": 7.0,
+        "units": "-",
+        "description": "Upper pH limit for acetate degraders",
+        "source": "default"
+      },
+      {
+        "name": "pH_LL_ac",
+        "group": "inhibition_parameters",
+        "value": 6.0,
+        "units": "-",
+        "description": "Lower pH limit for acetate degraders",
+        "source": "default"
+      },
+      {
+        "name": "pH_UL_h2",
+        "group": "inhibition_parameters",
+        "value": 6.0,
+        "units": "-",
+        "description": "Upper pH limit for hydrogen degraders",
+        "source": "default"
+      },
+      {
+        "name": "pH_LL_h2",
+        "group": "inhibition_parameters",
+        "value": 5.0,
+        "units": "-",
+        "description": "Lower pH limit for hydrogen degraders",
+        "source": "default"
+      },
+      {
+        "name": "K_I_h2_fa",
+        "group": "inhibition_parameters",
+        "value": 5e-06,
+        "units": "kgCOD.m^-3",
+        "description": "H2 inhibition constant for fatty acids",
+        "source": "default"
+      },
+      {
+        "name": "K_I_h2_c4",
+        "group": "inhibition_parameters",
+        "value": 1e-05,
+        "units": "kgCOD.m^-3",
+        "description": "H2 inhibition constant for butyrate/valerate",
+        "source": "default"
+      },
+      {
+        "name": "K_I_h2_pro",
+        "group": "inhibition_parameters",
+        "value": 2.4864e-07,
+        "units": "kgCOD.m^-3",
+        "description": "H2 inhibition constant for propionate",
+        "source": "scenario",
+        "default_value": 3.5e-06,
+        "override_note": "Calibrated"
+      },
+      {
+        "name": "K_I_nh3",
+        "group": "inhibition_parameters",
+        "value": 0.00047068,
+        "units": "M",
+        "description": "Inhibition constant for free ammonia",
+        "source": "scenario",
+        "default_value": 0.0018,
+        "override_note": "Calibrated"
+      },
+      {
+        "name": "K_a_va",
+        "group": "physico_chemical_parameters",
+        "value": 1.3803843e-05,
+        "units": "M",
+        "description": "Acid dissociation constant of valerate",
+        "source": "default"
+      },
+      {
+        "name": "K_a_bu",
+        "group": "physico_chemical_parameters",
+        "value": 1.5135612e-05,
+        "units": "M",
+        "description": "Acid dissociation constant of butyrate",
+        "source": "default"
+      },
+      {
+        "name": "K_a_pro",
+        "group": "physico_chemical_parameters",
+        "value": 1.3182567e-05,
+        "units": "M",
+        "description": "Acid dissociation constant of propionate",
+        "source": "default"
+      },
+      {
+        "name": "K_a_ac",
+        "group": "physico_chemical_parameters",
+        "value": 1.7378008e-05,
+        "units": "M",
+        "description": "Acid dissociation constant of acetate",
+        "source": "default"
+      },
+      {
+        "name": "K_w",
+        "group": "physico_chemical_parameters",
+        "value": 2.0787710559543604e-14,
+        "units": "M",
+        "description": "Water dissociation constant at operating temperature",
+        "source": "computed",
+        "default_value": 2.08e-14,
+        "override_note": "recomputed by the model code before integration"
+      },
+      {
+        "name": "K_a_co2",
+        "group": "physico_chemical_parameters",
+        "value": 4.937073397534363e-07,
+        "units": "M",
+        "description": "Acid-base equilibrium constant for CO2/HCO3- at operating temperature",
+        "source": "computed",
+        "default_value": 4.94e-07,
+        "override_note": "recomputed by the model code before integration"
+      },
+      {
+        "name": "K_a_IN",
+        "group": "physico_chemical_parameters",
+        "value": 1.1102866527080678e-09,
+        "units": "M",
+        "description": "Acid-base equilibrium constant for NH4+/NH3 at operating temperature",
+        "source": "computed",
+        "default_value": 1.11e-09,
+        "override_note": "recomputed by the model code before integration"
+      },
+      {
+        "name": "k_A_B_va",
+        "group": "physico_chemical_parameters",
+        "value": 10000000000.0,
+        "units": "M^-1.d^-1",
+        "description": "Association rate constant for valerate",
+        "source": "default"
+      },
+      {
+        "name": "k_A_B_bu",
+        "group": "physico_chemical_parameters",
+        "value": 10000000000.0,
+        "units": "M^-1.d^-1",
+        "description": "Association rate constant for butyrate",
+        "source": "default"
+      },
+      {
+        "name": "k_A_B_pro",
+        "group": "physico_chemical_parameters",
+        "value": 10000000000.0,
+        "units": "M^-1.d^-1",
+        "description": "Association rate constant for propionate",
+        "source": "default"
+      },
+      {
+        "name": "k_A_B_ac",
+        "group": "physico_chemical_parameters",
+        "value": 10000000000.0,
+        "units": "M^-1.d^-1",
+        "description": "Association rate constant for acetate",
+        "source": "default"
+      },
+      {
+        "name": "k_A_B_co2",
+        "group": "physico_chemical_parameters",
+        "value": 10000000000.0,
+        "units": "M^-1.d^-1",
+        "description": "Association rate constant for CO2",
+        "source": "default"
+      },
+      {
+        "name": "k_A_B_IN",
+        "group": "physico_chemical_parameters",
+        "value": 10000000000.0,
+        "units": "M^-1.d^-1",
+        "description": "Association rate constant for inorganic nitrogen",
+        "source": "default"
+      },
+      {
+        "name": "k_p",
+        "group": "physico_chemical_parameters",
+        "value": 50000.0,
+        "units": "m^3.d^-1.bar^-1",
+        "description": "Friction constant for gas outflow",
+        "source": "default"
+      },
+      {
+        "name": "k_L_a",
+        "group": "physico_chemical_parameters",
+        "value": 200.0,
+        "units": "d^-1",
+        "description": "Liquid-gas transfer coefficient",
+        "source": "default"
+      },
+      {
+        "name": "K_H_co2",
+        "group": "physico_chemical_parameters",
+        "value": 0.0271,
+        "units": "Mliq.bar^-1",
+        "description": "Henry constant for CO2 (at T_base)",
+        "source": "default"
+      },
+      {
+        "name": "K_H_ch4",
+        "group": "physico_chemical_parameters",
+        "value": 0.00116,
+        "units": "Mliq.bar^-1",
+        "description": "Henry constant for CH4 (at T_base)",
+        "source": "default"
+      },
+      {
+        "name": "K_H_h2",
+        "group": "physico_chemical_parameters",
+        "value": 0.000738,
+        "units": "Mliq.bar^-1",
+        "description": "Henry constant for H2 (at T_base)",
+        "source": "default"
+      },
+      {
+        "name": "V_liq",
+        "group": "reactor_parameters",
+        "value": 0.005,
+        "units": "m^3",
+        "description": "Reactor liquid volume (default BSM2 value)",
+        "source": "scenario",
+        "default_value": 3400.0,
+        "override_note": "5 L liquid volume"
+      },
+      {
+        "name": "V_gas",
+        "group": "reactor_parameters",
+        "value": 0.002,
+        "units": "m^3",
+        "description": "Reactor gas volume (default BSM2 value)",
+        "source": "scenario",
+        "default_value": 300.0,
+        "override_note": "2 L headspace"
+      },
+      {
+        "name": "V_ad",
+        "group": "reactor_parameters",
+        "value": 3700.0,
+        "units": "m^3",
+        "description": "Total reactor volume (V_liq + V_gas)",
+        "source": "default"
+      },
+      {
+        "name": "q_ad",
+        "group": "reactor_parameters",
+        "value": 178.4674,
+        "units": "m^3.d^-1",
+        "description": "Anaerobic digester inflow (default BSM2 value)",
+        "source": "default"
+      },
+      {
+        "name": "T_op",
+        "group": "reactor_parameters",
+        "value": 308.15,
+        "units": "K",
+        "description": "Default operating temperature (mesophilic, 35 C)",
+        "source": "scenario",
+        "default_value": 308.15,
+        "override_note": "35 C as hard-coded in the original code (data are at 39 C)"
+      },
+      {
+        "name": "T_ad",
+        "group": "derived",
+        "value": 308.15,
+        "units": null,
+        "description": "Alias of T_op",
+        "source": "computed",
+        "default_value": null
+      }
+    ],
+    "state_variables": [
+      {
+        "symbol": "S_su",
+        "name": "Monosaccharides",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Monosaccharide concentration",
+        "initial": 0.005064330136778,
+        "declared_initial": 0.005064330136778
+      },
+      {
+        "symbol": "S_aa",
+        "name": "Amino acids",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Amino-acid concentration",
+        "initial": 0.002267657417975,
+        "declared_initial": 0.002267657417975
+      },
+      {
+        "symbol": "S_fa",
+        "name": "LCFA",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Long-chain fatty acid concentration",
+        "initial": 0.039745579177836,
+        "declared_initial": 0.039745579177836
+      },
+      {
+        "symbol": "S_va",
+        "name": "Valerate (total)",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Total valerate concentration",
+        "initial": 0.004781384937714,
+        "declared_initial": 0.004781384937714
+      },
+      {
+        "symbol": "S_bu",
+        "name": "Butyrate (total)",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Total butyrate concentration",
+        "initial": 0.009546166645872,
+        "declared_initial": 0.009546166645872
+      },
+      {
+        "symbol": "S_pro",
+        "name": "Propionate (total)",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Total propionate concentration",
+        "initial": 0.060320136676456,
+        "declared_initial": 0.060320136676456
+      },
+      {
+        "symbol": "S_ac",
+        "name": "Acetate (total)",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Total acetate concentration",
+        "initial": 0.195838718470725,
+        "declared_initial": 0.195838718470725
+      },
+      {
+        "symbol": "S_h2",
+        "name": "Dissolved hydrogen",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Dissolved hydrogen concentration",
+        "initial": 4.35643495e-07,
+        "declared_initial": 4.35643495e-07
+      },
+      {
+        "symbol": "S_ch4",
+        "name": "Dissolved methane",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Dissolved methane concentration",
+        "initial": 0.040387019669682,
+        "declared_initial": 0.040387019669682
+      },
+      {
+        "symbol": "S_IC",
+        "name": "Inorganic carbon",
+        "kind": "state",
+        "units": "kmol C.m^-3",
+        "description": "Total inorganic carbon",
+        "initial": 0.088760488491645,
+        "declared_initial": 0.088760488491645
+      },
+      {
+        "symbol": "S_IN",
+        "name": "Inorganic nitrogen",
+        "kind": "state",
+        "units": "kmol N.m^-3",
+        "description": "Total inorganic nitrogen",
+        "initial": 0.086502521528236,
+        "declared_initial": 0.086502521528236
+      },
+      {
+        "symbol": "S_I",
+        "name": "Soluble inerts",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Soluble inert COD",
+        "initial": 1.543650531797525,
+        "declared_initial": 1.543650531797525
+      },
+      {
+        "symbol": "X_xc",
+        "name": "Composites",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Composite particulate matter",
+        "initial": 0.0,
+        "declared_initial": 0.0
+      },
+      {
+        "symbol": "X_ch",
+        "name": "Carbohydrates",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Particulate carbohydrates",
+        "initial": 3.109339792889835,
+        "declared_initial": 3.109339792889835
+      },
+      {
+        "symbol": "X_pr",
+        "name": "Proteins",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Particulate proteins",
+        "initial": 0.383675688579439,
+        "declared_initial": 0.383675688579439
+      },
+      {
+        "symbol": "X_li",
+        "name": "Lipids",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Particulate lipids",
+        "initial": 0.400397649270999,
+        "declared_initial": 0.400397649270999
+      },
+      {
+        "symbol": "X_su",
+        "name": "Sugar degraders",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Sugar-degrading biomass",
+        "initial": 3.295748592314258,
+        "declared_initial": 3.295748592314258
+      },
+      {
+        "symbol": "X_aa",
+        "name": "Amino-acid degraders",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Amino-acid-degrading biomass",
+        "initial": 0.52894436771972,
+        "declared_initial": 0.52894436771972
+      },
+      {
+        "symbol": "X_fa",
+        "name": "LCFA degraders",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "LCFA-degrading biomass",
+        "initial": 0.294597293607311,
+        "declared_initial": 0.294597293607311
+      },
+      {
+        "symbol": "X_c4",
+        "name": "Valerate/butyrate degraders",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Valerate- and butyrate-degrading biomass",
+        "initial": 0.409976340740416,
+        "declared_initial": 0.409976340740416
+      },
+      {
+        "symbol": "X_pro",
+        "name": "Propionate degraders",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Propionate-degrading biomass",
+        "initial": 0.421451334507323,
+        "declared_initial": 0.421451334507323
+      },
+      {
+        "symbol": "X_ac",
+        "name": "Acetate degraders",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Acetate-degrading (acetoclastic methanogenic) biomass",
+        "initial": 1.521243215648293,
+        "declared_initial": 1.521243215648293
+      },
+      {
+        "symbol": "X_h2",
+        "name": "Hydrogen degraders",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Hydrogen-degrading (hydrogenotrophic methanogenic) biomass",
+        "initial": 0.777168942833516,
+        "declared_initial": 0.777168942833516
+      },
+      {
+        "symbol": "X_I",
+        "name": "Particulate inerts",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Particulate inert COD",
+        "initial": 45.585198029349186,
+        "declared_initial": 45.585198029349186
+      },
+      {
+        "symbol": "S_cation",
+        "name": "Strong cations",
+        "kind": "state",
+        "units": "M",
+        "description": "Strong cations (kmol.m^-3)",
+        "initial": 0.017526378973457,
+        "declared_initial": 0.017526378973457
+      },
+      {
+        "symbol": "S_anion",
+        "name": "Strong anions",
+        "kind": "state",
+        "units": "M",
+        "description": "Strong anions (kmol.m^-3)",
+        "initial": 0.020847038597314,
+        "declared_initial": 0.020847038597314
+      },
+      {
+        "symbol": "S_H_ion",
+        "name": "H+",
+        "kind": "algebraic",
+        "units": "M",
+        "description": "Hydrogen ion concentration (kmol.m^-3)",
+        "initial": 6.730700880488228e-08,
+        "declared_initial": 1e-08
+      },
+      {
+        "symbol": "S_va_ion",
+        "name": "Valerate ion",
+        "kind": "algebraic",
+        "units": "M",
+        "description": "Dissociated valerate (kmol.m^-3)",
+        "initial": 2.2875885644524505e-05,
+        "declared_initial": 0.004756394986341,
+        "declared_units": "kgCOD.m^-3"
+      },
+      {
+        "symbol": "S_bu_ion",
+        "name": "Butyrate ion",
+        "kind": "algebraic",
+        "units": "M",
+        "description": "Dissociated butyrate (kmol.m^-3)",
+        "initial": 5.939939657130122e-05,
+        "declared_initial": 0.009500642638628,
+        "declared_units": "kgCOD.m^-3"
+      },
+      {
+        "symbol": "S_pro_ion",
+        "name": "Propionate ion",
+        "kind": "algebraic",
+        "units": "M",
+        "description": "Dissociated propionate (kmol.m^-3)",
+        "initial": 0.0005358367954090172,
+        "declared_initial": 0.059990096263201,
+        "declared_units": "kgCOD.m^-3"
+      },
+      {
+        "symbol": "S_ac_ion",
+        "name": "Acetate ion",
+        "kind": "algebraic",
+        "units": "M",
+        "description": "Dissociated acetate (kmol.m^-3)",
+        "initial": 0.0030481740500389386,
+        "declared_initial": 0.195024812296522,
+        "declared_units": "kgCOD.m^-3"
+      },
+      {
+        "symbol": "S_hco3_ion",
+        "name": "Bicarbonate",
+        "kind": "algebraic",
+        "units": "M",
+        "description": "Bicarbonate (kmol C.m^-3)",
+        "initial": 0.07811155768303883,
+        "declared_initial": 0.077796243746863
+      },
+      {
+        "symbol": "S_co2",
+        "name": "Dissolved CO2",
+        "kind": "algebraic",
+        "units": "M",
+        "description": "Dissolved free CO2 (kmol C.m^-3)",
+        "initial": 0.010648930808606169,
+        "declared_initial": 0.010964244744782
+      },
+      {
+        "symbol": "S_nh3",
+        "name": "Free ammonia",
+        "kind": "algebraic",
+        "units": "M",
+        "description": "Free ammonia (kmol N.m^-3)",
+        "initial": 0.001403776551470474,
+        "declared_initial": 0.001720167772227
+      },
+      {
+        "symbol": "S_nh4_ion",
+        "name": "Ammonium",
+        "kind": "algebraic",
+        "units": "M",
+        "description": "Ammonium (kmol N.m^-3)",
+        "initial": 0.08509874497676552,
+        "declared_initial": 0.084782353756009
+      },
+      {
+        "symbol": "S_gas_h2",
+        "name": "Gas H2",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Hydrogen in the headspace",
+        "initial": 1.8311747102e-05,
+        "declared_initial": 1.8311747102e-05
+      },
+      {
+        "symbol": "S_gas_ch4",
+        "name": "Gas CH4",
+        "kind": "state",
+        "units": "kgCOD.m^-3",
+        "description": "Methane in the headspace",
+        "initial": 1.224612521622608,
+        "declared_initial": 1.224612521622608
+      },
+      {
+        "symbol": "S_gas_co2",
+        "name": "Gas CO2",
+        "kind": "state",
+        "units": "kmol C.m^-3",
+        "description": "Carbon dioxide in the headspace",
+        "initial": 0.017133600121008,
+        "declared_initial": 0.017133600121008
+      }
+    ],
+    "influent": {
+      "mode_key": "tatiana_lab_5L",
+      "mode": "dynamic",
+      "description": "Tatiana lab digester 5 L - daily feed, dynamic flow Q(t), influent in X_ch/X_pr/X_li/X_I",
+      "file": "influent.csv",
+      "source_path": "configs/tatiana_lab_5L_influent.csv",
+      "time_column": "time",
+      "flow_column": "Q",
+      "time_units": "d",
+      "sha256": "c6c81a4f240178d3089bfcde2dba3eb4177da9d8b86272ec6b129d9f33131721",
+      "n_rows": 195,
+      "t_first": 0.0,
+      "t_last": 194.0
+    },
+    "hybrid": {
+      "config": {},
+      "enabled": false,
+      "rate_overrides": [],
+      "inhibition_overrides": [],
+      "residual_correction": []
+    },
+    "config_files_sha256": {
+      "adm1_parameters.yaml": "6aaaa6dcf9e417d910b542c643776b44d07fb27b919880edad29e03e1a22771c",
+      "Initial_states.yaml": "347dce5b6a87d2c772b30215153e6a5e5301fc3dde928e2262c5941ba505c363",
+      "Influent.yaml": "88397d947dd5d7c738aba7ce0cae541467c9cc7255c02705979d8d4bdf0eea51",
+      "Scenario.yaml": "20959dfb1ed1c26d335d6d358dc7b2603e003fc599899f10c0e78e8eed4b161e",
+      "Simulation.yaml": "c6fe3e6761760e444791970e5503c42f21688b8c42b2fe5ee6b6cb1955f3cee5"
+    }
+  },
+  "run": {
+    "run_id": "20261014T205236_Tatiana_RM_lab_5L_782609",
+    "created_at": "2026-10-14T20:52:36+02:00",
+    "user": "Camilo",
+    "duration_s": 33.766,
+    "solver": {
+      "method": "BDF",
+      "rtol": 1e-06,
+      "atol": 1e-08,
+      "max_step": 1.0,
+      "piecewise": true
+    },
+    "time": {
+      "t_start": 0.0,
+      "t_end": 193.0,
+      "dt_out": 1.0,
+      "units": "d",
+      "n_output_points": 194
+    },
+    "status": {
+      "success": true,
+      "message": "piecewise integration over 193 influent intervals",
+      "warnings": []
+    },
+    "environment": {
+      "python": "3.13.12",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "numpy": "2.4.4",
+      "scipy": "1.17.1",
+      "pandas": "2.3.3",
+      "yaml": "6.0.3",
+      "matplotlib": "3.10.9"
+    }
+  },
+  "outputs": {
+    "file": "dynamic_out.csv",
+    "sha256": "439038cf1177c3d3f8b72eedab579f5540cde75b872e93501b63b95ae87defd3",
+    "n_rows": 194,
+    "n_columns": 55,
+    "time_column": "time",
+    "variables": [
+      {
+        "name": "time",
+        "label": "Time",
+        "units": "d",
+        "kind": "time",
+        "description": "Simulation time"
+      },
+      {
+        "name": "S_su",
+        "label": "Monosaccharides",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Monosaccharide concentration"
+      },
+      {
+        "name": "S_aa",
+        "label": "Amino acids",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Amino-acid concentration"
+      },
+      {
+        "name": "S_fa",
+        "label": "LCFA",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Long-chain fatty acid concentration"
+      },
+      {
+        "name": "S_va",
+        "label": "Valerate (total)",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Total valerate concentration"
+      },
+      {
+        "name": "S_bu",
+        "label": "Butyrate (total)",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Total butyrate concentration"
+      },
+      {
+        "name": "S_pro",
+        "label": "Propionate (total)",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Total propionate concentration"
+      },
+      {
+        "name": "S_ac",
+        "label": "Acetate (total)",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Total acetate concentration"
+      },
+      {
+        "name": "S_h2",
+        "label": "Dissolved hydrogen",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Dissolved hydrogen concentration"
+      },
+      {
+        "name": "S_ch4",
+        "label": "Dissolved methane",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Dissolved methane concentration"
+      },
+      {
+        "name": "S_IC",
+        "label": "Inorganic carbon",
+        "units": "kmol C.m^-3",
+        "kind": "state",
+        "description": "Total inorganic carbon"
+      },
+      {
+        "name": "S_IN",
+        "label": "Inorganic nitrogen",
+        "units": "kmol N.m^-3",
+        "kind": "state",
+        "description": "Total inorganic nitrogen"
+      },
+      {
+        "name": "S_I",
+        "label": "Soluble inerts",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Soluble inert COD"
+      },
+      {
+        "name": "X_xc",
+        "label": "Composites",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Composite particulate matter"
+      },
+      {
+        "name": "X_ch",
+        "label": "Carbohydrates",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Particulate carbohydrates"
+      },
+      {
+        "name": "X_pr",
+        "label": "Proteins",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Particulate proteins"
+      },
+      {
+        "name": "X_li",
+        "label": "Lipids",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Particulate lipids"
+      },
+      {
+        "name": "X_su",
+        "label": "Sugar degraders",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Sugar-degrading biomass"
+      },
+      {
+        "name": "X_aa",
+        "label": "Amino-acid degraders",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Amino-acid-degrading biomass"
+      },
+      {
+        "name": "X_fa",
+        "label": "LCFA degraders",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "LCFA-degrading biomass"
+      },
+      {
+        "name": "X_c4",
+        "label": "Valerate/butyrate degraders",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Valerate- and butyrate-degrading biomass"
+      },
+      {
+        "name": "X_pro",
+        "label": "Propionate degraders",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Propionate-degrading biomass"
+      },
+      {
+        "name": "X_ac",
+        "label": "Acetate degraders",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Acetate-degrading (acetoclastic methanogenic) biomass"
+      },
+      {
+        "name": "X_h2",
+        "label": "Hydrogen degraders",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Hydrogen-degrading (hydrogenotrophic methanogenic) biomass"
+      },
+      {
+        "name": "X_I",
+        "label": "Particulate inerts",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Particulate inert COD"
+      },
+      {
+        "name": "S_cation",
+        "label": "Strong cations",
+        "units": "M",
+        "kind": "state",
+        "description": "Strong cations (kmol.m^-3)"
+      },
+      {
+        "name": "S_anion",
+        "label": "Strong anions",
+        "units": "M",
+        "kind": "state",
+        "description": "Strong anions (kmol.m^-3)"
+      },
+      {
+        "name": "S_H_ion",
+        "label": "H+",
+        "units": "M",
+        "kind": "algebraic",
+        "description": "Hydrogen ion concentration (kmol.m^-3)"
+      },
+      {
+        "name": "S_va_ion",
+        "label": "Valerate ion",
+        "units": "M",
+        "kind": "algebraic",
+        "description": "Dissociated valerate (kmol.m^-3)"
+      },
+      {
+        "name": "S_bu_ion",
+        "label": "Butyrate ion",
+        "units": "M",
+        "kind": "algebraic",
+        "description": "Dissociated butyrate (kmol.m^-3)"
+      },
+      {
+        "name": "S_pro_ion",
+        "label": "Propionate ion",
+        "units": "M",
+        "kind": "algebraic",
+        "description": "Dissociated propionate (kmol.m^-3)"
+      },
+      {
+        "name": "S_ac_ion",
+        "label": "Acetate ion",
+        "units": "M",
+        "kind": "algebraic",
+        "description": "Dissociated acetate (kmol.m^-3)"
+      },
+      {
+        "name": "S_hco3_ion",
+        "label": "Bicarbonate",
+        "units": "M",
+        "kind": "algebraic",
+        "description": "Bicarbonate (kmol C.m^-3)"
+      },
+      {
+        "name": "S_co2",
+        "label": "Dissolved CO2",
+        "units": "M",
+        "kind": "algebraic",
+        "description": "Dissolved free CO2 (kmol C.m^-3)"
+      },
+      {
+        "name": "S_nh3",
+        "label": "Free ammonia",
+        "units": "M",
+        "kind": "algebraic",
+        "description": "Free ammonia (kmol N.m^-3)"
+      },
+      {
+        "name": "S_nh4_ion",
+        "label": "Ammonium",
+        "units": "M",
+        "kind": "algebraic",
+        "description": "Ammonium (kmol N.m^-3)"
+      },
+      {
+        "name": "S_gas_h2",
+        "label": "Gas H2",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Hydrogen in the headspace"
+      },
+      {
+        "name": "S_gas_ch4",
+        "label": "Gas CH4",
+        "units": "kgCOD.m^-3",
+        "kind": "state",
+        "description": "Methane in the headspace"
+      },
+      {
+        "name": "S_gas_co2",
+        "label": "Gas CO2",
+        "units": "kmol C.m^-3",
+        "kind": "state",
+        "description": "Carbon dioxide in the headspace"
+      },
+      {
+        "name": "pH",
+        "label": "pH",
+        "units": "-",
+        "kind": "derived",
+        "description": "pH = -log10(S_H_ion)"
+      },
+      {
+        "name": "charge_residual",
+        "label": "Charge-balance residual",
+        "units": "M",
+        "kind": "derived",
+        "description": "Electroneutrality residual of the acid-base solver (should be ~0)"
+      },
+      {
+        "name": "COD_soluble",
+        "label": "Soluble COD",
+        "units": "kgCOD.m^-3",
+        "kind": "derived",
+        "description": "Sum of soluble COD states"
+      },
+      {
+        "name": "COD_particulate",
+        "label": "Particulate COD",
+        "units": "kgCOD.m^-3",
+        "kind": "derived",
+        "description": "Sum of particulate COD states"
+      },
+      {
+        "name": "COD_liquid_total",
+        "label": "Liquid COD",
+        "units": "kgCOD.m^-3",
+        "kind": "derived",
+        "description": "Soluble + particulate COD"
+      },
+      {
+        "name": "COD_gas",
+        "label": "Gas COD",
+        "units": "kgCOD.m^-3",
+        "kind": "derived",
+        "description": "S_gas_h2 + S_gas_ch4 (gas-phase concentration)"
+      },
+      {
+        "name": "COD_total_with_gas",
+        "label": "Liquid + gas COD (sum)",
+        "units": "kgCOD.m^-3",
+        "kind": "derived",
+        "description": "Sum of concentrations only; NOT a conservative mass inventory"
+      },
+      {
+        "name": "COD_liquid_inventory",
+        "label": "Liquid COD inventory",
+        "units": "kgCOD",
+        "kind": "derived",
+        "description": "COD_liquid_total x V_liq"
+      },
+      {
+        "name": "COD_gas_inventory",
+        "label": "Gas COD inventory",
+        "units": "kgCOD",
+        "kind": "derived",
+        "description": "COD_gas x V_gas"
+      },
+      {
+        "name": "COD_total_inventory",
+        "label": "Total COD inventory",
+        "units": "kgCOD",
+        "kind": "derived",
+        "description": "Liquid + gas COD inventory"
+      },
+      {
+        "name": "COD_gas_liquid_basis",
+        "label": "Gas COD (liquid basis)",
+        "units": "kgCOD.m^-3",
+        "kind": "derived",
+        "description": "Gas COD inventory / V_liq"
+      },
+      {
+        "name": "COD_total_liquid_basis",
+        "label": "Total COD (liquid basis)",
+        "units": "kgCOD.m^-3",
+        "kind": "derived",
+        "description": "COD_liquid_total + COD_gas_liquid_basis"
+      },
+      {
+        "name": "q_gas",
+        "label": "Biogas flow (wet, T_op, P_gas)",
+        "units": "m^3.d^-1",
+        "kind": "derived",
+        "description": "Wet biogas flow at T_op and headspace pressure (the flow used in the ODE)"
+      },
+      {
+        "name": "q_gas_atm",
+        "label": "Biogas flow (wet, T_op, P_atm)",
+        "units": "m^3.d^-1",
+        "kind": "derived",
+        "description": "q_gas x P_gas / P_atm"
+      },
+      {
+        "name": "q_gas_norm_dry",
+        "label": "Biogas flow (dry, normal)",
+        "units": "m^3.d^-1",
+        "kind": "derived",
+        "description": "Dry biogas at 0 C and 1.01325 bar"
+      },
+      {
+        "name": "q_ch4_norm_dry",
+        "label": "Methane flow (dry, normal)",
+        "units": "m^3.d^-1",
+        "kind": "derived",
+        "description": "Dry CH4 at 0 C and 1.01325 bar (x 1e6 -> NmL/d)"
+      }
+    ]
+  },
+  "reference": null
+}

@@ -7,8 +7,8 @@ Email: margaux.bonal@inrae.fr
 Date: 04/2026
 
 Loads the initial state vector from:
-  configs/Initial_states.yaml  (named state sets)
-  configs/Scenario.yaml        (active set selector)
+  configs/initial_states.yaml  (named state sets)
+  configs/scenario.yaml        (active set selector)
 
 The y0 vector is returned in the canonical order of the 38 ADM1 variables.
 """
@@ -43,8 +43,8 @@ class InitialState:
 
     def __init__(
         self,
-        states_file: str = "configs/Initial_states.yaml",
-        scenarios_file: str = "configs/Scenario.yaml",
+        states_file: str = "configs/initial_states.yaml",
+        scenarios_file: str = "configs/scenario.yaml",
     ):
         self.states_file = states_file
         self.scenarios_file = scenarios_file
@@ -58,7 +58,7 @@ class InitialState:
     def _load(self):
         """Determine the active state set and load it."""
         active_key = self._get_active_key()
-        with open(self.states_file, "r") as f:
+        with open(self.states_file, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f)
 
         if active_key not in raw:
@@ -92,7 +92,7 @@ class InitialState:
     def _get_active_key(self) -> str:
         """Read the active scenario and extract the initial-state set key."""
         try:
-            with open(self.scenarios_file, "r") as f:
+            with open(self.scenarios_file, "r", encoding="utf-8") as f:
                 raw = yaml.safe_load(f)
             active_scenario = raw.get("active_scenario", "BSM2")
             key = (
