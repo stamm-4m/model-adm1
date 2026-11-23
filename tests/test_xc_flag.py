@@ -1,5 +1,5 @@
 """
-Tests for the disintegration switch (configs/adm1_parameters.yaml -> disintegration.use_xc).
+Tests for the disintegration switch (configs/parameters.yaml -> disintegration.use_xc).
 
 Run from the repo root:   python tests/test_xc_flag.py
 

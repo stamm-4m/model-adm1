@@ -3,60 +3,82 @@
 ## 1. The mental model
 
 ```
-configs/scenario.yaml            ← THE SWITCHBOARD: one `active_scenario`, each scenario picks
-        │                          one entry from each catalogue below (+ optional overrides)
+configs/scenarios.yaml           ← THE SWITCHBOARD: `python main.py --scenario <name>`; each scenario
+        │                          picks one entry from each catalogue below (+ optional overrides)
         ├── initial_states: ──►  configs/initial_states.yaml   (catalogue of t=0 digester states)
         ├── influent_mode:  ──►  configs/influent.yaml         (catalogue of feeds: CSV or constant)
-        ├── T_op / parameter_overrides ─► on top of configs/adm1_parameters.yaml (the ADM1 constants)
-        └── hybrid: use: [...] ─► models/*.yaml                (catalogue of ML plug-ins, optional)
+        ├── parameter_overrides (T_op, q_ad, ...) ─► on top of configs/parameters.yaml (ADM1 constants)
+        └── adm1_hybrid: use: [...] ─► models/*.yaml           (catalogue of ML plug-ins, optional)
 
-configs/simulation.yaml          ← NUMERICS ONLY: solver, tolerances, horizon, output step, files
+configs/simulation.yaml          ← NUMERICS ONLY: solver, tolerances, horizon, output step, influent
+                                   hold, files
+configs/states.yaml, outputs.yaml, model_card.yaml
+                                 ← the description stamm-model-core needs (states, CSV columns, identity)
 ```
 
 You never edit Python to run a case. You (1) describe a feed / a start state once in the
-catalogues, (2) combine them in a scenario, (3) point `active_scenario` at it, (4) `python main.py`.
+catalogues, (2) combine them in a scenario, (3) `python main.py --scenario <name>`.
+The run itself (solver loop, results, run package) is done by stamm-model-core (`model.py` tells
+it how to run the reactor; see `architecture.md`).
 
 ## 2. Run
 
 ```bash
+pip install -e ../stamm-model-core   # once (not on PyPI)
 pip install -r requirements.txt
-python main.py                    # runs the active scenario → results/dynamic_out.csv + results/figures/
-python main.py --list-models      # hybrid plug-ins available in models/
-python main.py --list-hooks       # what a plug-in may replace (Rho_1…Rho_19, I_5…I_12, I_nh3, dy/dt residual)
+python main.py                       # the default scenario (BSM2_ringtest) → results/ + runs/<run_id>.zip
+python main.py --scenario BSM2_steady_state
+python main.py --list-scenarios      # every scenario with its description
+python main.py --list-models         # hybrid plug-ins available in models/
+python main.py --list-hooks          # what a plug-in may replace (Rho_1…Rho_19, I_5…I_12, I_nh3, dy/dt residual)
 ```
 
-Console: a banner with the scenario, reactor, feed and solver, then daily summaries (pH,
-biogas, inhibitions, COD), then `Success: True`.
+Other options: `--no-package`, `--runs-dir <folder>`, `--no-results`, `--no-plots`,
+`--influent-hold start|end|legacy` (see §5), `--t-end <d>` (a shorter horizon for a quick check
+only: do not register such a package under the scenario's name).
 
-## 3. The switchboard — `configs/scenario.yaml`
+Console: one line with the scenario, influent, horizon and solver; a progress line every 30 s;
+then the number of rows, the final pH and methane flow, the notes (warnings) of the run, the path of
+the run package and its check with the registry's rules (`VALID run package`).
+
+## 3. The switchboard — `configs/scenarios.yaml`
 
 ```yaml
-active_scenario : BSM2_dynamic          # <── change only this line to switch cases
+default_scenario: BSM2_ringtest         # run when --scenario is not given
 
 scenarios:
   BSM2_dynamic:                         # reference run (constant q_ad), validated vs MATLAB BSM2
+    description: >                      # required: stored with the scenario in the STAMM registry
+      Reference BSM2 simulation, daily dynamic influent.
     initial_states: BSM2                # key in initial_states.yaml
     influent_mode: dynamic              # key in influent.yaml
-    T_op: {value: 308.15, units: "K"}   # operating temperature (Henry & acid-base constants follow it)
-    parameter_overrides: {}             # any name from adm1_parameters.yaml, e.g. q_ad: {value: 170}
+    parameter_overrides:                # any name from parameters.yaml
+      T_op: {value: 308.15, units: "K"} # operating temperature (Henry & acid-base constants follow it)
+      # q_ad: {value: 170, units: "m^3.d^-1"}
     # t_end: 200                        # optional: scenario-level horizon [d], overrides simulation.yaml
 ```
+
+The scenario name is the name of the scenario in the STAMM registry: a scenario with other values
+must get another name.
 
 Provided scenarios:
 
 | scenario | start state | feed | notes |
 |---|---|---|---|
-| `BSM2_dynamic` | BSM2 | daily BSM2 feed, constant q_ad | default; PyADM1-identical; ~2 min |
+| `BSM2_dynamic` | BSM2 | daily BSM2 feed, constant q_ad | PyADM1-identical; ~1 min |
 | `BSM2_steady_state` | BSM2_steady_init | constant BSM2 feed, q_ad 170 | benchmark A (steady state, 200 d); 2 s |
-| `BSM2_ringtest` | BSM2 | daily BSM2 feed, **dynamic Q** | validation vs MATLAB; ~2 min |
+| `BSM2_ringtest` | BSM2 | daily BSM2 feed, **dynamic Q** | default; validation vs MATLAB; ~1 min |
 | `BSM2_ringtest_15min` | BSM2 | 15-min BSM2 feed, dynamic Q | exact MATLAB reproduction; ~50 min |
 | `BSM2_constant` | BSM2 | constant BSM2 feed | free steady-state runs |
 | `thermophilic` | BSM2 | daily feed | T_op 328 K + K_I_nh3 override |
 | `batch_validation` | BSM2 | constant, q_ad = 0 | batch kinetics |
 | `pig_slurry_test` | BSM2 | constant pig slurry, q_ad = 35 | example of a custom feed |
-| `hybrid_demo`, `hybrid_lr_demo`, `hybrid_lr_spec_demo` | BSM2 | daily feed | ML plug-ins active — **not** pure ADM1 |
+| `hybrid_demo`, `hybrid_lr_demo`, `hybrid_lr_spec_demo` | BSM2 | daily feed | fictitious ML plug-ins, illustrative only — **not** pure ADM1; the two `lr` demos give results NOT valid (X_ch < 0) |
+| `no_xc_demo` | BSM2 | constant feed without X_xc | `use_xc = 0` |
+| `Tatiana_RM_lab_5L`, `Tatiana_RM_lab_5L_39C` | Tatiana_lab_5L | 5 L lab digester | her data are not in git (not published yet) |
 
-To add a case: copy a block, rename it, change the keys, set `active_scenario` to it.
+To add a case: copy a block, rename it, change the keys (and the description), run it with
+`--scenario`.
 
 ## 4. The catalogues
 
@@ -71,8 +93,9 @@ my_plant:
   time_column: "time"                 # S_su … X_I in kgCOD/m3, S_IC/S_IN/S_cation/S_anion in kmol/m3
   flow_column: "Q"                    # OPTIONAL: feed flow [m3/d] per row; omit → constant q_ad
 ```
-The simulation ends at the last row of the CSV (`t_end: null`), the feed is held constant
-between rows, and the integrator restarts at every row (`solver.piecewise: true`).
+The simulation ends at the last row of the CSV (`t_end: null`), each row is held until the next
+one (`influent_hold: start`, §5), and the integrator restarts at every row (`solver.piecewise: true`).
+The CSV is copied into the run package (`influent.csv`) with its sha256 in run.json.
 
 *Constant:*
 ```yaml
@@ -97,15 +120,15 @@ Rules:
 * For a start-up from an inoculum: copy `BSM2`, set the biomass `X_*` to your inoculum, keep
   the ions consistent (S_cation − S_anion sets the alkalinity, hence the pH).
 
-### 4.3 Constants — `configs/adm1_parameters.yaml`
+### 4.3 Constants — `configs/parameters.yaml`
 The ADM1/BSM2 parameter set at 35 °C, identical to PyADM1. Do not edit for a case study —
 use `parameter_overrides:` in the scenario instead, so the reference stays intact.
 `K_H_*`, `p_gas_h2o`, `K_w`, `K_a_co2`, `K_a_IN` are recomputed from `T_op` by the code; the
-YAML values are the 35 °C reference only. The reactor geometry (`V_liq`, `V_gas`) and default
+YAML values are the 35 °C reference only (run.json lists the recomputed ones with source "computed"). The reactor geometry (`V_liq`, `V_gas`) and default
 `q_ad` live here too (override per scenario, e.g. `q_ad: {value: 35}`).
 
 ### 4.3b Disintegration switch — with or without the composite `X_xc`
-`adm1_parameters.yaml → disintegration.use_xc` (override per scenario):
+`parameters.yaml → disintegration.use_xc` (override per scenario):
 
 | `use_xc` | Feed characterised as | Biomass decay goes to | Reference |
 |---|---|---|---|
@@ -121,7 +144,7 @@ must sum to 1 (checked at start-up). With `use_xc: 1` the equations reduce exact
 ones (`tests/test_xc_flag.py`). Scenarios: `no_xc_demo`, `Tatiana_RM_lab_5L`.
 
 ### 4.3c Gas-flow law — overpressure (BSM2) or head-space at P_atm
-`adm1_parameters.yaml → gas_flow.gas_law_patm` (override per scenario):
+`parameters.yaml → gas_flow.gas_law_patm` (override per scenario):
 
 | `gas_law_patm` | `q_gas` | Physical picture | Use for |
 |---|---|---|---|
@@ -140,8 +163,9 @@ target: I_nh3                                   # or Rho_11, Rho_2, …, or resi
 backend: callable                               # or npz artefact
 artefact: examples/hybrid_inhibition_example.py:hill_nh3_inhibition
 ```
-Activate in a scenario with `hybrid: {enabled: true, use: [nh3_hill, rho11_T_aware]}`.
-Details: `docs/hybrid.md`.
+Activate in a scenario with `adm1_hybrid: {enabled: true, use: [nh3_hill, rho11_T_aware]}`; the
+models used and the sha256 of their files go to run.json. The models in `models/` today are
+fictitious examples (never tested on data). Details: `docs/hybrid.md`.
 
 ## 5. Numerics — `configs/simulation.yaml`
 | key | default | meaning |
@@ -150,12 +174,20 @@ Details: `docs/hybrid.md`.
 | `solver.rtol / atol` | 1e-6 / 1e-8 | tighten for benchmarking, loosen for fast screening |
 | `solver.max_step` | 1.0 d | upper bound; automatically capped at the influent step |
 | `solver.piecewise` | true | restart at each influent row (recommended) |
+| `influent_hold` | `start` | row held over each influent interval: `start` (a row holds until the next, best match of MATLAB), `end` (the next row, as the PyADM1 loop), `legacy` (before 2026-11-06); see validation.md §E |
+| `mode`, `dt_out`, `t_start`, `include_initial` | continuous, 1.0, 0, true | stamm-model-core settings (the output times come from `time.dt_out`) |
 | `time.t_end` | null | null → end of influent data (dynamic) / `t_end_default_constant` (constant) |
 | `time.dt_out` | null | output resolution; null = same grid as the influent CSV (15-min feed → 26 881 rows, like PyADM1); a number forces that step |
-| `output.*` | | output dir/file name, columns, `save_figures`, `show_figures` |
+| `output.*` | | results / runs folders, zip, code files hashed in run.json, `save_figures`, `show_figures`, `run_package.enabled` |
 
 ## 6. Outputs
-`results/dynamic_out.csv`: `time` + the 38 states + `pH`, `charge_residual`, COD diagnostics.
+`results/dynamic_out.csv`: `time` + the 38 states + `pH`, `charge_residual`, COD diagnostics and
+biogas flows, in the order of `configs/outputs.yaml` (which documents every column).
+
+`runs/<run_id>/` and `runs/<run_id>.zip`: the run package for the STAMM registry (Dynamic Models >
+Register simulations), written by stamm-model-core: `dynamic_out.csv`, `run.json` (model, resolved
+parameters, initial set, influent, hybrid, solver, warnings, columns) and `influent.csv` for a
+dynamic influent; checked with the registry's rules after each run. See `run_package.md`.
 Units: kgCOD/m³ for organics, kmol/m³ for S_IC, S_IN, ions. **VFA ions (`S_*_ion`) are in
 kmol/m³** (PyADM1/MATLAB use kgCOD/m³: ×64, 112, 160, 208). Gas states `S_gas_*` are
 concentrations; partial pressures p = S_gas·R·T (/16 for H₂, /64 for CH₄).
@@ -172,20 +204,23 @@ Figures: `results/figures/biogas.png`, `biomass.png`, `pH_alkalinity.png`.
 
 ## 7. Validate (do this after any change to `src/`)
 ```bash
-# A. steady state (2 s)   — active_scenario: BSM2_steady_state
-python main.py && python tests/benchmark_bsm2_steady.py --results results/dynamic_out.csv
-# B. dynamic ring test    — active_scenario: BSM2_ringtest (add --dynamic-q) or BSM2_dynamic
-python main.py && python tests/benchmark_bsm2.py --results results/dynamic_out.csv \
+# A. steady state (2 s)
+python main.py --scenario BSM2_steady_state
+python tests/benchmark_bsm2_steady.py --results results/dynamic_out.csv
+# B. dynamic ring test (add --dynamic-q for BSM2_ringtest; BSM2_dynamic without it)
+python main.py --scenario BSM2_ringtest
+python tests/benchmark_bsm2.py --results results/dynamic_out.csv --dynamic-q \
        --reference tests/data/Matlabout_dyn.csv --outdir results/benchmark
 ```
 `VERDICT: PASS` on both = still equivalent to the BSM2 references (test A also checks
 `q_gas_atm` against the published 2955.70 m³/d). Switch tests (instantaneous):
-`python tests/test_xc_flag.py` and `python tests/test_gas_law.py`. See `docs/validation.md`.
+`python tests/test_xc_flag.py` and `python tests/test_gas_law.py`; short runs on stamm-model-core:
+`python tests/test_model.py`. See `docs/validation.md`.
 
 ### 7b. Cross-test of the no-composite variant (Tatiana's 5 L digester)
+Her data are not in git (not published yet): this needs the local copy.
 ```bash
-# configs/scenario.yaml → active_scenario : Tatiana_RM_lab_5L        (~1 min)
-python main.py
+python main.py --scenario Tatiana_RM_lab_5L        # ~1 min
 python tests/compare_tatiana_rm.py --results results/dynamic_out.csv   # → PASS (|avg| ≤ 1.1 %, nRMSE ≤ 6.1 %)
 ```
 Compares 193 d of the 5 L lab digester (daily feed, dynamic flow, feed in X_ch/X_pr/X_li/X_I,
@@ -197,8 +232,8 @@ calibrated kinetics) with the trajectory of the independent RM_without_Xc code. 
 * **Temperature study:** duplicate a scenario, change `T_op` (constants follow automatically).
 * **Measured feed composition / solid substrate:** set `use_xc: 0` in `parameter_overrides`, put the
   feed in `X_ch/X_pr/X_li/X_I` with `X_xc = 0` (§4.3b), calibrate `k_hyd_*` — see `Tatiana_RM_lab_5L`.
-* **Calibration:** keep `adm1_parameters.yaml` fixed; put the free parameters in
+* **Calibration:** keep `parameters.yaml` fixed; put the free parameters in
   `parameter_overrides`; `configs/calibration.yaml` documents bounds/objective (framework only,
   no optimiser is wired yet).
 * **Hybrid ML:** write the callable in `examples/`, describe it in `models/x.yaml`, list it under
-  `hybrid.use` — and check the identity version reproduces the benchmark.
+  `adm1_hybrid.use` — and check the identity version reproduces the benchmark.

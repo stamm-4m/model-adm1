@@ -1,0 +1,18 @@
+Port check 2026-11-06 14:58: previous code = C:\Users\Camilo\Documents\Claude\Projects\STAMM\backups\model_adm1_original_20261106, new code = this folder; registry parser: found; jobs 6
+
+=== BSM2_ringtest  (previous 79 s, new 72 s)
+  dynamic_out.csv: identical (line endings differ)
+  influent.csv: identical
+  parameters: same values
+  computed by the model: ['K_w', 'K_a_co2', 'K_a_IN']; scenario fingerprint (new) ff04695ab11f
+  registry parser: ACCEPTED (281 rows, scenario BSM2_ringtest)
+  warnings: previous [], new []
+=== BSM2_steady_state  (previous 11 s, new 3 s)
+  dynamic_out.csv: identical (line endings differ)
+  parameters: same values
+  computed by the model: ['K_w', 'K_a_co2', 'K_a_IN']; scenario fingerprint (new) 0cf3e8608265
+  registry parser: ACCEPTED (201 rows, scenario BSM2_steady_state)
+  warnings: previous [], new []
+
+RESULT: all identical and accepted
+temporary folder (logs): C:\Users\Camilo\AppData\Local\Temp\adm1_port_kcfd6oqr

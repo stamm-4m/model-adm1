@@ -23,8 +23,7 @@ PyADM1) every state is 1–7 % off — that is not a model error.
 ## A. Steady-state test
 
 ```bash
-# configs/scenario.yaml → active_scenario : BSM2_steady_state
-python main.py
+python main.py --scenario BSM2_steady_state
 python tests/benchmark_bsm2_steady.py --results results/dynamic_out.csv
 ```
 Prints the 38 states next to the published BSM2 values and PyADM1's errors; `VERDICT: PASS`
@@ -40,15 +39,15 @@ if every |error| ≤ 1e-5. Reference: `tests/data/bsm2_steady_state.csv`; influe
 | Influent, 280 d @ 15 min | `data/influent/bsm2/digester_influent_15min.csv` | 26 concentrations + flow `Q` (59–466 m³/d) + T |
 | Influent, daily averages | `data/influent/bsm2/daily_averages.csv` | derived from the above |
 | Initial digester state | `configs/initial_states.yaml` (`BSM2`) = `tests/data/digester_initial.csv` | S_cation ≈ 0, pH 7.263 |
-| Parameters | `configs/adm1_parameters.yaml` | BSM2 values, 35 °C (identical to PyADM1) |
+| Parameters | `configs/parameters.yaml` | BSM2 values, 35 °C (identical to PyADM1) |
 | **Reference output** | `tests/data/Matlabout_dyn.csv` | MATLAB BSM2 ADM1, all 38 states, 15 min |
 | PyADM1's own result | `tests/data/ringtest.csv` | yardstick |
 
 ### Step by step
 
-1. `configs/scenario.yaml` → `active_scenario : BSM2_dynamic` (constant q_ad = 178.47,
-   PyADM1-identical) **or** `BSM2_ringtest` (dynamic Q(t), closer to MATLAB).
-2. `python main.py` → `results/dynamic_out.csv` (280 d, daily).
+1. Pick `BSM2_dynamic` (constant q_ad = 178.47, PyADM1-identical) **or** `BSM2_ringtest`
+   (dynamic Q(t), closer to MATLAB).
+2. `python main.py --scenario BSM2_ringtest` → `results/dynamic_out.csv` (280 d, daily).
 3. Score:
    ```bash
    python tests/benchmark_bsm2.py --results results/dynamic_out.csv \
@@ -94,8 +93,7 @@ flow, feed in `X_ch/X_pr/X_li/X_I`, calibrated kinetics (`Tatiana_RM_lab_5L`, T_
 code). Reference: `tests/data/tatiana_rm_sim_result.csv`.
 
 ```bash
-# configs/scenario.yaml → active_scenario : Tatiana_RM_lab_5L
-python main.py                                                          # ~1 min
+python main.py --scenario Tatiana_RM_lab_5L                           # ~1 min (her data are not in git)
 python tests/compare_tatiana_rm.py --results results/dynamic_out.csv    # → PASS
 ```
 Result (2026-09-10): 193-d averages within 1.0 % on all 27 states, pH within 0.002 units, daily
@@ -128,6 +126,22 @@ three gas derivatives are identical to 1e-15 (with `0` they differ, as expected)
 (2026-09-30, `gas_law_patm: 1` instead of the former `k_p = 5` approximation): gas states now within
 0.2 % on average (S_gas_ch4 +0.29 → +0.03 %, S_gas_co2 +0.28 → −0.00 %), biogas flow within 0.04 %
 (nRMSE 4.5 %), pH within 0.001; all 28 states + q_gas PASS.
+
+## E. Influent row held over each interval (`influent_hold`, 2026-11-06)
+
+Which influent row drives [t_(i-1), t_i]: `start` (row i-1, a row holds until the next one, default)
+or `end` (row i, as the PyADM1 loop); `legacy` reproduces the lookup before 2026-11-06. Against the
+MATLAB reference (`python tools/influent_hold_study.py --with-15min`):
+
+| scenario | hold | max abs avg err % | max daily nRMSE % | states failing |
+|---|---|---|---|---|
+| BSM2_ringtest (daily) | start | 3.728 | 10.280 | 0 |
+| BSM2_ringtest (daily) | end | 3.877 | 24.036 | 9 |
+| BSM2_ringtest_15min | start | 0.012 | 0.151 | 0 |
+| BSM2_ringtest_15min | end | 0.012 | 0.149 | 0 |
+
+The reference holds each row until the next one (with the daily feed, `end` is one day early).
+Details: [CHANGES_2026-11-06_influent_hold_63.md](CHANGES_2026-11-06_influent_hold_63.md).
 
 ## Regression use (both tests)
 

@@ -9,7 +9,7 @@ maximum absolute error of 1.9e-5; this implementation reaches ~8e-7 at 200 d and
 The biogas flow at atmospheric pressure (CSV column q_gas_atm) is also checked against the published
 q_gas = 2955.70345419378 m3/d (relative tolerance 1e-5).
 
-Usage:  python main.py            # with active_scenario: BSM2_steady_state
+Usage:  python main.py --scenario BSM2_steady_state
         python tests/benchmark_bsm2_steady.py --results results/dynamic_out.csv [--tol 1e-5]
 """
 import argparse, os, sys

@@ -13,7 +13,7 @@ or a sensor-bias compensation).
 Registered as:
   models/methane_bias.yaml  (backend: callable, target: residual:S_ch4)
 Wired by:
-  configs/scenario.yaml > scenarios.<your_scenario>.hybrid.use: [methane_bias]
+  configs/scenarios.yaml > scenarios.<your_scenario>.adm1_hybrid.use: [methane_bias]
 
 Required signature
 ------------------

@@ -29,7 +29,7 @@ The full hybrid workflow you would follow with any ML backend
 Registered as:
     models/rho2_lr_module.yaml  (backend: callable, target: Rho_2)
 Wired by:
-    configs/scenario.yaml > scenarios.<your_scenario>.hybrid.use: [rho2_lr_module]
+    configs/scenarios.yaml > scenarios.<your_scenario>.adm1_hybrid.use: [rho2_lr_module]
 
 The model
 ---------

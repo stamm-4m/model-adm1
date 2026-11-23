@@ -91,7 +91,7 @@ class ADM1Reactor:
 
         self._state_template = np.zeros(len(FULL_STATE_NAMES), dtype=float)
 
-        # ── Disintegration switch (configs/adm1_parameters.yaml → disintegration.use_xc) ──
+        # ── Disintegration switch (configs/parameters.yaml → disintegration.use_xc) ──
         # use_xc = 1 (default): classical ADM1/BSM2 — decay → X_xc → k_dis → X_ch/X_pr/X_li/X_I/S_I.
         # use_xc = 0: Batstone et al. (2015) variant — no disintegration; decay is split directly
         #   with the biomass fractions f_*_xb (default = f_*_xc, i.e. the RM_without_Xc convention).
@@ -110,7 +110,7 @@ class ADM1Reactor:
                     "otherwise COD is not conserved in biomass decay."
                 )
 
-        # ── Gas-flow law switch (configs/adm1_parameters.yaml → gas_flow.gas_law_patm) ──
+        # ── Gas-flow law switch (configs/parameters.yaml → gas_flow.gas_law_patm) ──
         # gas_law_patm = 0 (default): BSM2 overpressure law  q_gas = k_p·(P_gas − P_atm)
         #   (Rosen & Jeppsson 2006; PyADM1; the MATLAB BSM2 ODEs). Validated.
         # gas_law_patm = 1: headspace held at P_atm (Batstone et al. 2002, as in RM_without_Xc):

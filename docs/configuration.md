@@ -4,10 +4,10 @@
 - Margaux Bonal — <margaux.bonal@inrae.fr>
 - David Camilo Corrales — <David-Camilo.Corrales-Munoz@inrae.fr>
 
-**Date:** April 2026
+**Date:** April 2026 (updated 2026-11-07: stamm-model-core layout)
 
 This document explains how the ADM1 configuration is split across the
-six YAML files in [`../configs/`](../configs/), what each one is for,
+YAML files in [`../configs/`](../configs/), what each one is for,
 what it should and shouldn't contain, and why it's organised this way.
 Read this if you want to add a new scenario, calibrate parameters, or
 extend the configuration.
@@ -17,17 +17,22 @@ extend the configuration.
 ## TL;DR — one file per question
 
 The configuration follows a **separation of responsibilities**: each
-file answers exactly one question about the simulation. Six files, six
-questions, no overlap.
+file answers exactly one question about the simulation. Six files for
+the model and its scenarios, plus three that describe the model to
+stamm-model-core (the package that runs it and writes the STAMM run
+package).
 
 | Question | File | What lives here |
 | --- | --- | --- |
-| What are the reference ADM1 parameters? | [`configs/adm1_parameters.yaml`](../configs/adm1_parameters.yaml) | All intrinsic ADM1 constants — kinetic, stoichiometric, physico-chemical. **Independent of any specific simulation.** |
+| What are the reference ADM1 parameters? | [`configs/parameters.yaml`](../configs/parameters.yaml) | All intrinsic ADM1 constants — kinetic, stoichiometric, physico-chemical. **Independent of any specific simulation.** |
 | What is the starting state of the digester? | [`configs/initial_states.yaml`](../configs/initial_states.yaml) | Named initial-state vectors (BSM2 reference, custom start-ups, ...). |
 | What enters the digester? | [`configs/influent.yaml`](../configs/influent.yaml) | Influent definitions: dynamic CSV time series or constant values. |
-| What do we want to test? | [`configs/scenario.yaml`](../configs/scenario.yaml) | Active-scenario selector + per-scenario overrides. **Main entry point for the user.** |
+| What do we want to test? | [`configs/scenarios.yaml`](../configs/scenarios.yaml) | Named scenarios (`python main.py --scenario <name>`, `default_scenario`) + per-scenario overrides. **Main entry point for the user.** |
 | How are the equations solved? | [`configs/simulation.yaml`](../configs/simulation.yaml) | ODE solver settings, time horizon, output options. |
-| Which parameters are adjusted? | [`configs/calibration.yaml`](../configs/calibration.yaml) | Calibration framework: free parameters, bounds, objective function. |
+| Which parameters are adjusted? | [`configs/calibration.yaml`](../configs/calibration.yaml) | Calibration framework: free parameters, bounds, objective function (not read by any script yet). |
+| Which variables does the solver integrate? | [`configs/states.yaml`](../configs/states.yaml) | The 29 integrated states in solver order, with units (stamm-model-core). |
+| What is in the results CSV? | [`configs/outputs.yaml`](../configs/outputs.yaml) | Every column of `dynamic_out.csv`, in order: kind, units, label, description. |
+| Which model is this? | [`configs/model_card.yaml`](../configs/model_card.yaml) | Name, version, authors, references, license: written in every run package. |
 
 This split is what lets you:
 
@@ -35,10 +40,10 @@ This split is what lets you:
   (only swap scenarios).
 - **Calibrate parameters** without entangling them with operating
   conditions (free parameters live in `calibration.yaml`, not in
-  `adm1_parameters.yaml`).
+  `parameters.yaml`).
 - **Switch operating regimes** (mesophilic ↔ thermophilic) without
   forking the parameter file (use `parameter_overrides:` in
-  `scenario.yaml`).
+  `scenarios.yaml`).
 - **Reproduce results** because each file has a single authoritative
   source of truth.
 
@@ -66,10 +71,12 @@ can be reviewed independently.
 
 ## Per-file reference
 
-### [`configs/adm1_parameters.yaml`](../configs/adm1_parameters.yaml) — the model
+### [`configs/parameters.yaml`](../configs/parameters.yaml) — the model
 
 The **central, stable parameter library** for ADM1. Values from
-Rosen et al. (2006) BSM2 report and Batstone et al. (2002).
+Rosen et al. (2006) BSM2 report and Batstone et al. (2002). Each entry has
+`value`, `units`, `source` and `description` (stamm-model-core requires the
+four); the sources are given per group for now.
 
 Includes:
 - General constants (e.g. `R`, `T_base`, `p_atm`)
@@ -84,7 +91,9 @@ states, influent profiles, numerical settings, scenarios, or calibration
 parameters.
 
 > Treat this file as a stable library. Per-scenario tweaks belong in
-> `scenario.yaml > parameter_overrides:`, not here.
+> `scenarios.yaml > parameter_overrides:`, not here. Values the code
+> recomputes (K_w, K_a_co2, K_a_IN from T_op) are reported in run.json with
+> source "computed".
 
 ### [`configs/initial_states.yaml`](../configs/initial_states.yaml) — where the digester starts
 
@@ -98,7 +107,8 @@ variables at `t = 0`:
 
 Multiple sets can coexist (e.g. `BSM2` reference, plus custom start-ups
 or thermophilic / high-ammonia sets). Each scenario selects one via
-`initial_states:`.
+`initial_states:`. The set as declared (with its `pH` when given) is written
+in run.json -> calibration.state_variables.
 
 ### [`configs/influent.yaml`](../configs/influent.yaml) — what comes in
 
@@ -110,23 +120,30 @@ Defines the digester feed in one of two modes:
 
 Custom feedstocks (e.g. `pig_slurry`) are added as additional named
 blocks in this file; scenarios then reference them by name via
-`influent_mode:`.
+`influent_mode:`. A dynamic CSV is copied into the run package
+(`influent.csv`, sha256 in run.json); which row drives each interval is set
+by `influent_hold` in `simulation.yaml`.
 
-### [`configs/scenario.yaml`](../configs/scenario.yaml) — the user's entry point
+### [`configs/scenarios.yaml`](../configs/scenarios.yaml) — the user's entry point
 
 The **main entry point**. A scenario is a self-contained recipe that
 bundles:
 
+- A description (`description:`, required: stored with the scenario in the
+  STAMM registry).
 - An initial-state set (`initial_states:`).
 - An influent mode (`influent_mode:`).
-- Operating temperature (`T_op:`).
-- Optional parameter overrides (`parameter_overrides:`).
-- Optional hybrid hooks (`hybrid:`) — see [`hybrid.md`](hybrid.md).
+- Parameter overrides (`parameter_overrides:`), the operating temperature
+  `T_op` included.
+- An optional horizon (`t_end:`).
+- Optional hybrid hooks (`adm1_hybrid:`) — see [`hybrid.md`](hybrid.md).
 
-The active scenario is chosen at the top of the file with
-`active_scenario:`. Provided scenarios include reference BSM2 (dynamic
-and constant), thermophilic conditions, batch validation, hybrid demos,
-and a pig-slurry feedstock; see the README for the full list.
+A scenario is run with `python main.py --scenario <name>`;
+`default_scenario:` is run without the option. The scenario name is its name
+in the STAMM registry: other values need another name. Provided scenarios
+include reference BSM2 (dynamic and constant), thermophilic conditions,
+batch validation, hybrid demos (fictitious models, illustrative only), and a
+pig-slurry feedstock; `python main.py --list-scenarios` lists them.
 
 > This file defines the **simulation context**, not the full parameter set.
 
@@ -134,16 +151,23 @@ and a pig-slurry feedstock; see the README for the full list.
 
 Numerical settings only — independent of the physical model:
 
-- Solver selection (BDF / RK45 / Radau / LSODA / DOP853)
-- Tolerances (`rtol`, `atol`, `max_step`)
+- Solver selection (BDF / Radau / LSODA; explicit RK45 / DOP853 refused
+  unless `allow_explicit: true`: the system is stiff)
+- Tolerances (`rtol`, `atol`, `max_step`), restart at each influent row
+  (`piecewise`)
+- Which influent row drives each interval (`influent_hold`: start / end / legacy)
 - Time horizon (`t_start`, `t_end`, fallback for constant-influent runs)
-- Output time step and output options
-- Verbosity / progress display
+- Output time step and output options (results / runs folders, run package)
+- The stamm-model-core settings (`mode: continuous`, `include_initial`)
 
 This separation lets you tighten the solver without touching the
 biophysical model and vice versa.
 
 ### [`configs/calibration.yaml`](../configs/calibration.yaml) — what is adjustable
+
+> **Not used yet:** no script of this repository reads this file (neither `main.py` nor
+> stamm-model-core). It documents the intended calibration set-up; the calibration itself is
+> still to be written.
 
 Defines the calibration framework:
 
@@ -155,34 +179,37 @@ Defines the calibration framework:
 
 This file ensures a **clear distinction between fixed model parameters
 and adjustable parameters**. The fixed values stay in
-`adm1_parameters.yaml`; only the free parameters and their bounds live
+`parameters.yaml`; only the free parameters and their bounds live
 here.
 
 ---
 
 ## How the files fit together at runtime
 
-When `python main.py` runs:
+When `python main.py --scenario <name>` runs:
 
-1. **`scenario.yaml`** is read first → picks the active scenario.
-2. The active scenario tells the loader which `initial_states:` set and
-   which `influent_mode:` to use, and supplies any `parameter_overrides:`
-   and `hybrid:` config.
-3. **`adm1_parameters.yaml`** is loaded as the parameter base; the
-   scenario's `parameter_overrides:` are layered on top.
+1. stamm-model-core reads and checks every file of `configs/` (one error
+   message lists every problem).
+2. **`scenarios.yaml`** gives the scenario: which `initial_states:` set,
+   which `influent_mode:`, the `parameter_overrides:` and the
+   `adm1_hybrid:` config.
+3. **`parameters.yaml`** is the parameter base; the scenario's
+   `parameter_overrides:` are layered on top.
 4. **`initial_states.yaml`** is loaded for the named initial-state set;
    if a target `pH:` is specified, the strong-anion concentration is
    back-solved to make the charge balance close.
-5. **`influent.yaml`** is loaded for the active influent mode.
-6. **`simulation.yaml`** is loaded for solver and output settings.
-7. The reactor is built; if a `hybrid:` block is present, hooks are
-   wired in (see [`hybrid.md`](hybrid.md)).
-8. `solve_ivp` runs; results are written under
-   `results/dynamic_out.csv` and (if enabled) plots under
-   `results/figures/`.
+5. **`influent.yaml`** is loaded for the influent mode.
+6. **`simulation.yaml`** gives the solver, horizon, output times and
+   `influent_hold`.
+7. `model.py` builds the reactor (constants from T_op) and wires the hybrid
+   hooks if an `adm1_hybrid:` block is present (see [`hybrid.md`](hybrid.md)).
+8. stamm-model-core integrates (one solver piece per influent interval),
+   adds the acid-base / COD / biogas columns, writes
+   `results/dynamic_out.csv` and the run package `runs/<run_id>.zip`
+   (checked with the registry's rules); plots go to `results/figures/`.
 
-`calibration.yaml` is read only when calibration is run explicitly —
-it's not consumed by the standard simulation entry point.
+`calibration.yaml` is not read by any script yet (see above): it is a
+plan of the calibration, not an input of the simulation.
 
 ---
 

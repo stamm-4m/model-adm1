@@ -8,7 +8,7 @@ Date: 04/2026
 
 Loads the initial state vector from:
   configs/initial_states.yaml  (named state sets)
-  configs/scenario.yaml        (active set selector)
+  configs/scenarios.yaml       (scenario -> initial set)
 
 The y0 vector is returned in the canonical order of the 38 ADM1 variables.
 """
@@ -44,10 +44,17 @@ class InitialState:
     def __init__(
         self,
         states_file: str = "configs/initial_states.yaml",
-        scenarios_file: str = "configs/scenario.yaml",
+        scenarios_file: str = "configs/scenarios.yaml",
+        scenario_key: str | None = None,
+        param=None,
     ):
+        """``scenario_key``: the scenario to read (default: active_scenario / default_scenario of the
+        file); ``param``: the resolved parameters used to derive S_anion from a pH (default: read
+        from the files)."""
         self.states_file = states_file
         self.scenarios_file = scenarios_file
+        self.scenario_key = scenario_key
+        self.param = param
         self.state_dict: dict = {}
         self._load()
 
@@ -81,7 +88,8 @@ class InitialState:
 
         if target_pH is not None:
             self.state_dict["S_H_ion"] = 10.0 ** (-target_pH)
-            param = ADM1Parameters(scenarios_file=self.scenarios_file)
+            param = self.param if self.param is not None else ADM1Parameters(
+                scenarios_file=self.scenarios_file, scenario_key=self.scenario_key)
             self.state_dict["S_anion"] = compute_required_strong_ion_for_pH(
                 self.state_dict,
                 param,
@@ -94,7 +102,7 @@ class InitialState:
         try:
             with open(self.scenarios_file, "r", encoding="utf-8") as f:
                 raw = yaml.safe_load(f)
-            active_scenario = raw.get("active_scenario", "BSM2")
+            active_scenario = self.scenario_key or raw.get("active_scenario") or raw.get("default_scenario", "BSM2")
             key = (
                 raw.get("scenarios", {})
                 .get(active_scenario, {})

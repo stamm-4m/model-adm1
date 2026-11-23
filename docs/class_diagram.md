@@ -1,8 +1,9 @@
 # Class diagram — model-adm1 from a software point of view
 
-Five small classes, one orchestrating script, and a bag of pure functions. No inheritance anywhere;
-everything is composed in `main.py`. Configuration (YAML) is the source of truth; the classes are thin
-readers around it, and `ADM1Reactor` is the only object with real logic (the 38 ODEs).
+Five small classes, one model class, one entry script and a bag of pure functions. The only inheritance
+is `ADM1(OdeModel)` (model.py): the contract of stamm-model-core, which runs the simulation loop and
+writes the run package. Configuration (YAML) is the source of truth; the classes are thin readers around
+it, and `ADM1Reactor` is the only object with real logic (the 38 ODEs).
 
 ```mermaid
 classDiagram
@@ -10,11 +11,30 @@ classDiagram
 
     class main {
         <<script>>
-        +main()
-        -ADM1_wrapper(t, y) dydt
-        -get_influent_for_time(t) dict
-        -build_time_vector()
-        -print_startup_banner()
+        +main(--scenario, --influent-hold, ...)
+        +output_times()
+        +influent_record() dict
+        +hybrid_record() list
+        +make_plots()
+    }
+
+    class ADM1 {
+        <<model.py, OdeModel>>
+        +states : 29 names
+        +influent_hold : start / end / legacy
+        +initial_state(x0, p) dict
+        +derived_parameters(p) dict
+        +breakpoints(t0, t1) list
+        +before_segment(t0, t1)
+        +rhs(t, y, p, u) dydt
+        +post_columns(columns, p) dict
+        +result_warnings(columns, p) list
+    }
+
+    class run_scenario {
+        <<stamm-model-core>>
+        continuous mode: solve_ivp per piece
+        results CSV, run package, validation
     }
 
     class ADM1Parameters {
@@ -111,48 +131,54 @@ classDiagram
 
     class configs {
         <<YAML>>
-        scenario.yaml
-        adm1_parameters.yaml
+        scenarios.yaml
+        parameters.yaml
         initial_states.yaml
         influent.yaml
         simulation.yaml
+        states.yaml
+        outputs.yaml
+        model_card.yaml
     }
 
-    main --> ADM1Parameters : builds
-    main --> InitialState : builds
-    main --> Influent : builds
-    main --> ADM1Reactor : builds
+    main --> InitialState : builds (param from_values)
+    main --> Influent : builds (param from_values)
     main --> registry : load_registry()
-    main --> hybrid : apply_hybrid_config()
-    main --> solve_ivp : per influent step
+    main --> ADM1 : builds
+    main --> run_scenario : runs the scenario
     main --> plots : after the run
-    solve_ivp ..> main : calls ADM1_wrapper(t, y)
+    run_scenario --> solve_ivp : per piece
+    solve_ivp ..> ADM1 : calls rhs(t, y)
+    ADM1 --> ADM1Reactor : builds in initial_state()
+    ADM1 --> hybrid : apply_hybrid_config()
+    ADM1 ..> acid_base : post_columns()
     ADM1Reactor o-- ADM1Parameters : param
     ADM1Reactor ..> acid_base : every RHS call
-    ADM1Reactor ..> Influent : influent_state (dict injected by main)
+    ADM1Reactor ..> Influent : influent_state (row set by ADM1)
     registry ..> ModelEntry : creates
     hybrid ..> ModelEntry : compiles
     hybrid ..> ADM1Reactor : sets overrides and residual_correction
-    InitialState ..> acid_base : (via main) ions at t=0
+    InitialState ..> acid_base : S_anion from a pH
     Influent ..> acid_base : constant feed with pH key
-    ADM1Parameters ..> configs : adm1_parameters.yaml + scenario.yaml
-    InitialState ..> configs : initial_states.yaml + scenario.yaml
-    Influent ..> configs : influent.yaml + scenario.yaml + CSV
+    ADM1Parameters ..> configs : parameters.yaml + scenarios.yaml
+    InitialState ..> configs : initial_states.yaml + scenarios.yaml
+    Influent ..> configs : influent.yaml + scenarios.yaml + CSV
     registry ..> configs : models yaml files
 
 ```
 
 ## Reading guide
 
-* **`scenario.yaml` is the switchboard.** `ADM1Parameters`, `InitialState` and `Influent` each open it
-  only to read `active_scenario` and pick their own block (`parameter_overrides` / `initial_states` /
-  `influent_mode`). They never talk to each other.
-* **`ADM1Parameters` is a flat `dict` with attribute access** (`param.k_dis`, `param.use_xc`). Priority:
-  scenario `parameter_overrides` > scenario `T_op` > `adm1_parameters.yaml`. The reactor also *writes*
-  into it (`K_w`, `K_a_co2`, `K_a_IN` recomputed from `T_op`; `q_ad` updated per feed row when the
-  influent has a flow column).
-* **`ADM1Reactor` is stateless between calls** except for the `influent_state` dict that `main` injects
-  before every RHS evaluation and the `_last_*` caches used for logging. `ADM1_ODE` is the pipeline
+* **`scenarios.yaml` is the switchboard**, the scenario is chosen with `python main.py --scenario <key>`.
+  `main.py` resolves the parameters with stamm-model-core (`parameters.yaml` + the scenario's
+  `parameter_overrides`, T_op included) and hands them to `InitialState` and `Influent`
+  (`scenario_key=`, `param=ADM1Parameters.from_values(...)`), which pick their own block
+  (`initial_states` / `influent_mode`). They never talk to each other.
+* **`ADM1Parameters` is a flat `dict` with attribute access** (`param.k_dis`, `param.use_xc`). The reactor
+  also *writes* into it (`K_w`, `K_a_co2`, `K_a_IN` recomputed from `T_op`, reported in run.json with
+  source "computed"; `q_ad` updated per feed row when the influent has a flow column).
+* **`ADM1Reactor` is stateless between calls** except for the `influent_state` dict that `ADM1.rhs` sets
+  before every RHS evaluation (the row held over the current piece) and the `_last_*` caches. `ADM1_ODE` is the pipeline
   `acid_base → inhibitions → rates → gas → mass_balances`, with the three hybrid hook points in between.
 * **Two state vectors.** The solver integrates 29 dynamic states (`y29`); the reactor works on the full
   38 (`y38`), the 9 acid–base states being recomputed algebraically at each call
@@ -164,7 +190,7 @@ classDiagram
   produce the `q_gas*` CSV columns and the biogas plot).
 * **Hybrid layer** = `registry` (reads `models/*.yaml` → `ModelEntry`) + `hybrid` (turns an entry into a
   Python callable and plugs it into `rate_overrides`, `inhibition_overrides` or `residual_correction`).
-  With no `hybrid:` block in the scenario the reactor is pure ADM1.
+  With no `adm1_hybrid:` block in the scenario the reactor is pure ADM1.
 
 ## One simulation, as a sequence
 
@@ -172,6 +198,8 @@ classDiagram
 sequenceDiagram
     autonumber
     participant M as main.py
+    participant C as stamm-model-core
+    participant D as ADM1 (model.py)
     participant P as ADM1Parameters
     participant S as InitialState
     participant I as Influent
@@ -180,27 +208,30 @@ sequenceDiagram
     participant H as registry / hybrid
     participant O as scipy.solve_ivp
 
-    M->>P: ADM1Parameters()  (YAML + scenario overrides)
-    M->>S: InitialState()    (y0, 38 values)
-    M->>I: Influent()        (CSV or constant block)
-    M->>R: ADM1Reactor(param) - T constants, use_xc, f_xb
-    M->>H: load_registry() + apply_hybrid_config(reactor, hybrid cfg)
+    M->>C: load_config + apply_overrides (parameters of the scenario)
+    M->>S: InitialState(scenario_key, param)  (initial set, S_anion from pH)
+    M->>I: Influent(scenario_key, param)       (CSV or constant block)
+    M->>C: run_scenario(ADM1, t_out, solver, influent record, ...)
+    C->>D: initial_state(x0, p)
+    D->>R: ADM1Reactor(param) - T constants, use_xc, f_xb
+    D->>H: apply_hybrid_config(reactor, adm1_hybrid)
     H-->>R: rate_overrides / inhibition_overrides / residual_correction
-    M->>A: compute_acid_base_equilibrium(y0) - consistent ions at t=0
-    M->>R: reduce_to_dynamic_state(y0_38) to y0_29
-    loop each influent row (solver.piecewise = true)
-        M->>O: solve_ivp(ADM1_wrapper, (t_i, t_i+1), y, BDF)
+    D->>A: compute_acid_base_equilibrium(y0) - consistent ions at t=0
+    D-->>C: y0 (29 states); derived_parameters: K_w, K_a_co2, K_a_IN
+    loop each piece between two influent rows (breakpoints)
+        C->>D: before_segment(t_i, t_i+1) - the row held over the piece
+        C->>O: solve_ivp(rhs, (t_i, t_i+1), y, BDF)
         loop each RHS evaluation
-            O->>M: ADM1_wrapper(t, y29)
-            M->>R: influent_state = influent.get(row), param.q_ad = Q(t)
-            M->>R: ADM1_ODE(t, y29)
-            R->>R: expand_dynamic_state to y38
+            O->>D: rhs(t, y29)
+            D->>R: influent_state = row, param.q_ad = Q of the row
+            D->>R: ADM1_ODE(t, y29)
             R->>A: compute_acid_base_equilibrium(state) - pH, ions
-            R->>R: compute_inhibitions, compute_biochemical_rates, compute_gas_transfer
-            R->>R: mass_balances (38 eq.) + residual_correction
+            R->>R: inhibitions, rates, gas transfer, 38 mass balances + residual
             R-->>O: dydt (29)
         end
     end
-    M->>R: expand + acid_base on every output row (38 states + pH)
-    M->>M: write results/dynamic_out.csv and figures
+    C->>D: post_columns - acid-base, pH, COD, biogas on every output row
+    C->>D: result_warnings - negative concentrations
+    C->>C: results/dynamic_out.csv, runs/run_id.zip, validation
+    M->>M: figures
 ```

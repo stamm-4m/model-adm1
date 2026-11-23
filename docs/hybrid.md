@@ -49,8 +49,8 @@ flowchart LR
     end
     m1 -.-> a1
 
-    subgraph sc["configs/scenario.yaml"]
-        s1["my_scenario:<br/>  hybrid:<br/>    enabled: true<br/>    use: [foo, bar]"]
+    subgraph sc["configs/scenarios.yaml"]
+        s1["my_scenario:<br/>  adm1_hybrid:<br/>    enabled: true<br/>    use: [foo, bar]"]
     end
     models --> s1
     s1 --> rx[(ADM1 reactor<br/>hooks wired)]
@@ -70,11 +70,12 @@ model, filename stem = name.
 
 ```yaml
 my_scenario:
+  description: BSM2 dynamic with my two plug-ins    # required: stored with the scenario
   initial_states: BSM2
   influent_mode: dynamic
-  T_op: { value: 308.15, units: K }
-  parameter_overrides: {}
-  hybrid:
+  parameter_overrides:
+    T_op: { value: 308.15, units: K }
+  adm1_hybrid:
     enabled: true               # default false — omit for pure ADM1
     use: [foo, bar]             # any number of registered model names
 ```
@@ -157,8 +158,9 @@ to pure ADM1. If it isn't, your wiring has a bug.
 | `hybrid_lr_demo`      | Rho_2 replaced by a Python-callable linear regression            |
 | `hybrid_lr_spec_demo` | Rho_2 replaced by a saved `.npz` artefact (`linear_lstsq` backend) |
 
-Pick one with `active_scenario:` in `configs/scenario.yaml`, then
-`python main.py`.
+Run one with `python main.py --scenario hybrid_demo`. The models used and the sha256 of their
+files are written in run.json -> calibration.hybrid. These demos are illustrative only (fictitious
+models, never tested against data); see the warning in `examples/README.md`.
 
 ---
 

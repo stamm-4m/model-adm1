@@ -1,0 +1,34 @@
+# Configuration/states: the 29 integrated ADM1 states, in solver order (src/reactor.py
+# DYNAMIC_STATE_NAMES). The 9 acid-base species are algebraic (outputs.yaml). The initial sets
+# stay in configs/initial_states.yaml (named sets, pH -> S_anion), read by main.py.
+states:
+  S_su: {units: "kgCOD.m^-3", label: "Monosaccharides", description: "Monosaccharide concentration"}
+  S_aa: {units: "kgCOD.m^-3", label: "Amino acids", description: "Amino-acid concentration"}
+  S_fa: {units: "kgCOD.m^-3", label: "LCFA", description: "Long-chain fatty acid concentration"}
+  S_va: {units: "kgCOD.m^-3", label: "Valerate (total)", description: "Total valerate concentration"}
+  S_bu: {units: "kgCOD.m^-3", label: "Butyrate (total)", description: "Total butyrate concentration"}
+  S_pro: {units: "kgCOD.m^-3", label: "Propionate (total)", description: "Total propionate concentration"}
+  S_ac: {units: "kgCOD.m^-3", label: "Acetate (total)", description: "Total acetate concentration"}
+  S_h2: {units: "kgCOD.m^-3", label: "Dissolved hydrogen", description: "Dissolved hydrogen concentration"}
+  S_ch4: {units: "kgCOD.m^-3", label: "Dissolved methane", description: "Dissolved methane concentration"}
+  S_IC: {units: "kmol C.m^-3", label: "Inorganic carbon", description: "Total inorganic carbon"}
+  S_IN: {units: "kmol N.m^-3", label: "Inorganic nitrogen", description: "Total inorganic nitrogen"}
+  S_I: {units: "kgCOD.m^-3", label: "Soluble inerts", description: "Soluble inert COD"}
+  X_xc: {units: "kgCOD.m^-3", label: "Composites", description: "Composite particulate matter"}
+  X_ch: {units: "kgCOD.m^-3", label: "Carbohydrates", description: "Particulate carbohydrates"}
+  X_pr: {units: "kgCOD.m^-3", label: "Proteins", description: "Particulate proteins"}
+  X_li: {units: "kgCOD.m^-3", label: "Lipids", description: "Particulate lipids"}
+  X_su: {units: "kgCOD.m^-3", label: "Sugar degraders", description: "Sugar-degrading biomass"}
+  X_aa: {units: "kgCOD.m^-3", label: "Amino-acid degraders", description: "Amino-acid-degrading biomass"}
+  X_fa: {units: "kgCOD.m^-3", label: "LCFA degraders", description: "LCFA-degrading biomass"}
+  X_c4: {units: "kgCOD.m^-3", label: "Valerate/butyrate degraders", description: "Valerate- and butyrate-degrading biomass"}
+  X_pro: {units: "kgCOD.m^-3", label: "Propionate degraders", description: "Propionate-degrading biomass"}
+  X_ac: {units: "kgCOD.m^-3", label: "Acetate degraders", description: "Acetate-degrading (acetoclastic methanogenic) biomass"}
+  X_h2: {units: "kgCOD.m^-3", label: "Hydrogen degraders", description: "Hydrogen-degrading (hydrogenotrophic methanogenic) biomass"}
+  X_I: {units: "kgCOD.m^-3", label: "Particulate inerts", description: "Particulate inert COD"}
+  S_cation: {units: "M", label: "Strong cations", description: "Strong cations (kmol.m^-3)"}
+  S_anion: {units: "M", label: "Strong anions", description: "Strong anions (kmol.m^-3)"}
+  S_gas_h2: {units: "kgCOD.m^-3", label: "Gas H2", description: "Hydrogen in the headspace"}
+  S_gas_ch4: {units: "kgCOD.m^-3", label: "Gas CH4", description: "Methane in the headspace"}
+  S_gas_co2: {units: "kmol C.m^-3", label: "Gas CO2", description: "Carbon dioxide in the headspace"}
+initial_sets: {}

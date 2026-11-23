@@ -3,9 +3,14 @@
 One worked example per plug-point type. Each is registered as a model
 under [`../models/`](../models/) and wired into a demo scenario.
 
+> **Illustrative only.** The models of these examples are fictitious: none was trained or tested on
+> real data. They show how to plug a model into ADM1, not a validated hybrid ADM1. Two of them
+> (`hybrid_lr_demo`, `hybrid_lr_spec_demo`) even drive X_ch negative: their runs are flagged
+> "results NOT valid" in run.json -> run.status.warnings.
+
 ```mermaid
 flowchart LR
-    py["examples/<br/>foo_example.py"] --> yaml["models/<br/>foo.yaml"] --> sc["scenario.yaml<br/>hybrid.use: [foo]"]
+    py["examples/<br/>foo_example.py"] --> yaml["models/<br/>foo.yaml"] --> sc["scenarios.yaml<br/>adm1_hybrid.use: [foo]"]
     classDef code fill:#e6f7f2,stroke:#117a65,color:#0b5345
     classDef yaml fill:#fff4e6,stroke:#cc6600,color:#663300
     class py code
@@ -31,13 +36,8 @@ the same predictions but loaded as a saved `.npz` (`backend: linear_lstsq`)
 | `hybrid_lr_demo`      | `rho2_lr_module` (Python callable LR)                    |
 | `hybrid_lr_spec_demo` | `rho2_lr_synthetic` (saved `.npz` LR)                    |
 
-```yaml
-# configs/scenario.yaml
-active_scenario: hybrid_demo
-```
-
 ```bash
-python main.py
+python main.py --scenario hybrid_demo
 ```
 
 ## Writing your own

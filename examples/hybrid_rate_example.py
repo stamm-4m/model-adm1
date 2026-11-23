@@ -9,7 +9,7 @@ project, replace the body with a call to a sklearn / PyTorch / ONNX model.
 Registered as:
   models/rho11_T_aware.yaml  (backend: callable, target: Rho_11)
 Wired by:
-  configs/scenario.yaml > scenarios.<your_scenario>.hybrid.use: [rho11_T_aware]
+  configs/scenarios.yaml > scenarios.<your_scenario>.adm1_hybrid.use: [rho11_T_aware]
 
 Required signature
 ------------------

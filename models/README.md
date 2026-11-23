@@ -2,6 +2,9 @@
 
 One YAML per registered model. The directory **is** the registry.
 
+> The models registered here today are fictitious examples (see `examples/README.md`): none was
+> trained or tested on real data.
+
 ```mermaid
 flowchart LR
     subgraph models["models/"]
@@ -10,7 +13,7 @@ flowchart LR
     end
     y -. references .-> a
     y -->|filename stem<br/>= registry name| reg{{load_registry}}
-    reg --> sc["scenario.yaml<br/>hybrid.use: [foo]"]
+    reg --> sc["scenarios.yaml<br/>adm1_hybrid.use: [foo]"]
     sc --> rx[(ADM1 reactor<br/>foo replaces<br/>target hook)]
 
     classDef yaml fill:#fff4e6,stroke:#cc6600,color:#663300

@@ -51,10 +51,18 @@ class Influent:
     def __init__(
         self,
         influent_file: str = "configs/influent.yaml",
-        scenarios_file: str = "configs/scenario.yaml",
+        scenarios_file: str = "configs/scenarios.yaml",
+        scenario_key: str | None = None,
+        param=None,
     ):
+        """``scenario_key``: the scenario to read (default: active_scenario / default_scenario of the
+        file); ``param``: the resolved parameters used to derive S_anion from a pH (default: read
+        from the files)."""
         self.influent_file = influent_file
         self.scenarios_file = scenarios_file
+        self.scenario_key = scenario_key
+        self.param = param
+        self.mode_key: str | None = None
         self.mode: str = ""
         self._time: np.ndarray | None = None
         self._data: pd.DataFrame | None = None          # mode dynamic
@@ -69,6 +77,7 @@ class Influent:
     def _load(self):
         """Read the configuration and load data according to the active mode."""
         mode_key = self._get_active_mode()
+        self.mode_key = mode_key
 
         with open(self.influent_file, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f)
@@ -109,7 +118,8 @@ class Influent:
             if isinstance(config.get("pH"), dict) and "value" in config["pH"]:
                 target_pH = float(config["pH"]["value"])
                 self._constant_values["S_H_ion"] = 10.0 ** (-target_pH)
-                param = ADM1Parameters(scenarios_file=self.scenarios_file)
+                param = self.param if self.param is not None else ADM1Parameters(
+                    scenarios_file=self.scenarios_file, scenario_key=self.scenario_key)
                 self._constant_values["S_anion"] = compute_required_strong_ion_for_pH(
                     self._constant_values,
                     param,
@@ -132,7 +142,7 @@ class Influent:
             if not isinstance(raw, dict):
                 return "dynamic"
 
-            active_scenario = raw.get("active_scenario") or "BSM2_dynamic"
+            active_scenario = self.scenario_key or raw.get("active_scenario") or raw.get("default_scenario") or "BSM2_dynamic"
             scenarios = raw.get("scenarios") or {}
             scenario = scenarios.get(active_scenario) or {}
             mode = scenario.get("influent_mode") or "dynamic"

@@ -6,3 +6,13 @@ venv/
 .env
 .idea/
 .vscode/
+
+# run outputs (results/benchmark_* are kept: the validation evidence)
+runs/
+results/dynamic_out*.csv
+results/figures/
+
+# Tatiana's lab-digester data: not published until she agrees (Camilo, 2026-11-06)
+data/influent/lab_5L_2023/
+tests/data/tatiana_rm_sim_result.*
+tests/compare_tatiana_rm.py

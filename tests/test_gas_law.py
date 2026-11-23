@@ -1,5 +1,5 @@
 """
-Tests for the gas-flow law switch (configs/adm1_parameters.yaml -> gas_flow.gas_law_patm).
+Tests for the gas-flow law switch (configs/parameters.yaml -> gas_flow.gas_law_patm).
 
 Run from the repo root:   python tests/test_gas_law.py
 

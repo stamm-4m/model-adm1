@@ -1,695 +1,263 @@
 """
 ADM1 Reactor Simulation (Adapted from PyADM1)
-Main entry point — simulation runner
- 
+Entry point: run one scenario with stamm-model-core, write results/ and the STAMM run package
+(runs/<run_id>.zip), checked with the registry's rules.
+
+    python main.py                                  # default scenario of configs/scenarios.yaml
+    python main.py --scenario BSM2_steady_state
+    python main.py --list-scenarios | --list-models | --list-hooks
+
 Authors:
     - Margaux Bonal           <margaux.bonal@inrae.fr>
     - David Camilo Corrales   <David-Camilo.Corrales-Munoz@inrae.fr>
-Date: 04/2026
- 
-Configuration files expected at:
-    configs/
-    ├── adm1_parameters.yaml     ← intrinsic ADM1 kinetic/stoichiometric parameters
-    ├── initial_states.yaml      ← initial state vectors (one per named scenario)
-    ├── influent.yaml            ← influent definition (dynamic CSV or constant values)
-    ├── scenario.yaml            ← active scenario selector + parameter overrides
-    └── simulation.yaml          ← ODE solver settings, time horizon, output options
-"""
 
+Configuration (configs/):
+    parameters.yaml      intrinsic ADM1 parameters (kinetic, stoichiometric, physico-chemical, reactor)
+    initial_states.yaml  named initial-state sets (a pH sets S_anion)
+    influent.yaml        influent modes (dynamic CSV or constant values)
+    scenarios.yaml       scenarios: initial set, influent mode, horizon, parameter overrides, hybrid
+    simulation.yaml      solver, horizon and output settings
+    states.yaml / outputs.yaml / model_card.yaml   the stamm-model-core description of the model
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
 import os
 import sys
-import time
-import yaml
+
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.integrate import solve_ivp
 
-from src.reactor import ADM1Reactor, FULL_STATE_NAMES
-from src.parameters import ADM1Parameters
-from initial_states import InitialState
-from src.influent import Influent
-from src.hybrid import apply_hybrid_config
-from src.registry import load_registry, format_registry, format_hooks
+ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, ROOT)
+os.chdir(ROOT)                      # the configuration and the hybrid registry use relative paths
 
-from src.acid_base import compute_acid_base_equilibrium, compute_total_cod
-from src.run_export import export_run_package
+from stamm_model import StammModelError, apply_overrides, load_config, run_scenario  # noqa: E402
 
-from plots.plot_biogas import plot_biogas
-from plots.plot_biomass import plot_biomass
-from plots.plot_pH_alkalinity import plot_pH_alkalinity
+from initial_states import InitialState  # noqa: E402
+from model import ADM1  # noqa: E402
+from src.influent import Influent  # noqa: E402
+from src.parameters import ADM1Parameters  # noqa: E402
+from src.registry import format_hooks, format_registry, load_registry  # noqa: E402
 
-def _handle_introspection_flags(argv) -> bool:
-    """Handle --list-models / --list-hooks. Returns True if a flag was handled
-    (caller should exit). Kept separate so main() stays focused on simulation."""
-    if "--list-hooks" in argv:
+STATES_FILE = "configs/initial_states.yaml"
+INFLUENT_FILE = "configs/influent.yaml"
+SCENARIOS_FILE = "configs/scenarios.yaml"
+EXPLICIT_SOLVERS = ("RK45", "RK23", "DOP853")
+
+
+def _sha256(path):
+    with open(path, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+def _float(value, default):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def output_times(t_start, t_end, dt_out):
+    """t_start, t_start + dt_out, ... and t_end itself when it falls between two steps."""
+    if dt_out <= 0:
+        raise ValueError("dt_out must be strictly positive.")
+    if t_end <= t_start:
+        raise ValueError("t_end must be strictly greater than t_start.")
+    n = int(np.floor((t_end - t_start) / dt_out)) + 1
+    t = t_start + np.arange(n) * dt_out
+    return np.append(t, t_end) if t[-1] < t_end else t
+
+
+def influent_record(influent, mode_key: str) -> tuple[dict, dict]:
+    """calibration.inputs of run.json (what defines the influent) and the file to put in the package."""
+    import yaml
+    with open(INFLUENT_FILE, encoding="utf-8") as fh:
+        cfg = (yaml.safe_load(fh) or {}).get(mode_key, {}) or {}
+    desc = cfg.get("description")
+    rec = {"kind": "influent", "mode_key": mode_key, "mode": influent.mode,
+           "description": " ".join(str(desc).split()) if desc else None}
+    files = {}
+    if influent.mode == "dynamic":
+        src = cfg.get("file_path")
+        t = np.asarray(influent.get_time(), dtype=float)
+        rec.update({"influent_file": "influent.csv", "source_path": src, "time_column": cfg.get("time_column", "time"),
+                    "flow_column": cfg.get("flow_column"), "time_units": cfg.get("time_units", "d"),
+                    "sha256": _sha256(src), "n_rows": int(len(t)), "t_first": float(t[0]), "t_last": float(t[-1])})
+        files["influent.csv"] = os.path.join(ROOT, src)
+    else:
+        units = {k: v.get("units") for k, v in cfg.items() if isinstance(v, dict)}
+        rec["values"] = [{"name": k, "value": v, "units": units.get(k)}
+                         for k, v in (influent._constant_values or {}).items()]
+        if isinstance(cfg.get("pH"), dict):
+            rec["values"].append({"name": "pH", "value": cfg["pH"].get("value"), "units": "-"})
+    return rec, files
+
+
+def hybrid_record(summary: dict, hybrid_cfg: dict, registry: dict) -> list:
+    """calibration.hybrid: the models of models/*.yaml plugged in, with the sha256 of their files."""
+    if not summary.get("enabled"):
+        return []
+    models = []
+    for name in hybrid_cfg.get("use") or []:
+        e = registry[name]
+        files = {}
+        if e.source_path is not None:
+            files[str(e.source_path).replace(os.sep, "/")] = _sha256(e.source_path)
+        art = str(e.artefact).split(":")[0]
+        for cand in (os.path.join("models", art), art):
+            if os.path.isfile(cand):
+                files[cand.replace(os.sep, "/")] = _sha256(cand)
+                break
+        models.append({"name": name, "target": e.target, "backend": e.backend, "artefact": e.artefact,
+                       "files_sha256": files})
+    return [{"kind": "model-adm1 hybrid registry (models/*.yaml)", "use": list(hybrid_cfg.get("use") or []),
+             "rate_overrides": summary.get("rate_overrides", []),
+             "inhibition_overrides": summary.get("inhibition_overrides", []),
+             "residual_correction": summary.get("residual_correction", []), "models": models}]
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="ADM1 simulation + STAMM run package (stamm-model-core)")
+    ap.add_argument("--scenario", help="scenario key of configs/scenarios.yaml (default: default_scenario)")
+    ap.add_argument("--list-scenarios", action="store_true")
+    ap.add_argument("--list-models", action="store_true", help="hybrid models registered in models/*.yaml")
+    ap.add_argument("--list-hooks", action="store_true", help="what a hybrid model can plug into")
+    ap.add_argument("--no-package", action="store_true", help="do not write the run package")
+    ap.add_argument("--runs-dir", help="folder of the run packages (default: output.runs_dir)")
+    ap.add_argument("--no-results", action="store_true", help="do not write results/dynamic_out.csv")
+    ap.add_argument("--no-plots", action="store_true", help="do not write results/figures")
+    ap.add_argument("--influent-hold", choices=["start", "end", "legacy"],
+                    help="influent row held over [t_(i-1), t_i] (default: simulation.yaml influent_hold)")
+    ap.add_argument("--t-end", type=float, help="shorter horizon [d] for a quick check (do not register such a "
+                                                "package under the scenario's name: other values, same name)")
+    a = ap.parse_args(argv)
+    if a.list_hooks:
         print(format_hooks())
-        return True
-    if "--list-models" in argv:
+        return 0
+    if a.list_models:
         print(format_registry(load_registry()))
-        return True
-    return False
+        return 0
+    try:
+        cfg = load_config(ROOT)
+        if a.list_scenarios:
+            for k, s in cfg.scenarios.items():
+                print(f"{k:24s} {' '.join(str(s.get('description', '')).split())[:90]}")
+            return 0
+        key = a.scenario or cfg.default_scenario
+        scen = cfg.scenario(key)
+        sim = cfg.simulation
+        solver_cfg, time_cfg, output_cfg = sim.get("solver", {}), sim.get("time", {}), sim.get("output", {})
+        method = str(solver_cfg.get("method", "BDF"))
+        if method.upper() in EXPLICIT_SOLVERS and not bool(solver_cfg.get("allow_explicit", False)):
+            raise SystemExit(f"solver.method = '{method}' is an explicit integrator; this ADM1 formulation is stiff and "
+                             "explicit methods give wrong results (negative concentrations). Use 'BDF' (default), "
+                             "'Radau' or 'LSODA', or set solver.allow_explicit: true in simulation.yaml.")
 
+        # the parameters of the scenario (parameters.yaml + overrides), before the model recomputes any
+        params, _ = apply_overrides(cfg.parameters, cfg.param_meta, scen.get("parameter_overrides"))
+        init = InitialState(STATES_FILE, SCENARIOS_FILE, scenario_key=key, param=ADM1Parameters.from_values(params))
+        x0 = init.get_dict()
+        with open(STATES_FILE, encoding="utf-8") as fh:
+            import yaml
+            ph = ((yaml.safe_load(fh) or {}).get(init._get_active_key()) or {}).get("pH")
+        if isinstance(ph, dict) and "value" in ph:
+            x0["pH"] = float(ph["value"])               # declared pH (S_H_ion and S_anion follow from it)
+        influent = Influent(INFLUENT_FILE, SCENARIOS_FILE, scenario_key=key, param=ADM1Parameters.from_values(params))
+        hybrid_cfg = scen.get("adm1_hybrid") or {}
+        registry = load_registry()
+        hold = a.influent_hold or str(sim.get("influent_hold", "start"))
+        model = ADM1(influent, hybrid_cfg, registry, piecewise=bool(solver_cfg.get("piecewise", True)),
+                     influent_hold=hold)
 
-def main():
-    _run_started_at = time.time()   # wall-clock start, used by the run package (run.json)
-
-    # ============================================================
-    # 0. Configuration paths
-    # ============================================================
-    PARAMS_FILE = "configs/adm1_parameters.yaml"
-    STATES_FILE = "configs/initial_states.yaml"
-    INFLUENT_FILE = "configs/influent.yaml"
-    SCENARIO_FILE = "configs/scenario.yaml"
-    SIMULATION_FILE = "configs/simulation.yaml"
-
-
-    # ============================================================
-    # 1. Utility helpers
-    # ============================================================
-    def load_yaml_file(path: str) -> dict:
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"File not found: {path}")
-        with open(path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        if data is None:
-            return {}
-        if not isinstance(data, dict):
-            raise ValueError(f"YAML file {path} must contain a mapping.")
-        return data
-
-
-    def safe_float(value, default):
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return float(default)
-
-
-    def build_time_vector(t_start: float, t_end: float, dt_out: float) -> np.ndarray:
-        """
-        Build the array of time points at which ODE results are recorded.
- 
-        The vector starts at t_start, increments by dt_out, and always
-        includes t_end as the last point (even if it falls between two steps).
- 
-        Parameters
-        ----------
-        t_start : float  Simulation start time (d).
-        t_end   : float  Simulation end time (d).
-        dt_out  : float  Output time step (d). Must be > 0.
- 
-        Returns
-        -------
-        np.ndarray : 1-D array of time evaluation points (d).
-        """
-        if dt_out <= 0:
-            raise ValueError("dt_out must be strictly positive.")
-        if t_end <= t_start:
-            raise ValueError("t_end must be strictly greater than t_start.")
-
-        # Explicitly include the final point if possible
-        n_steps = int(np.floor((t_end - t_start) / dt_out)) + 1
-        t_eval = t_start + np.arange(n_steps) * dt_out
-
-        # Append t_end explicitly so the final state is always captured
-        if t_eval[-1] < t_end:
-            t_eval = np.append(t_eval, t_end)
-
-        return t_eval
-
-
-    def maybe_print(msg: str, enabled: bool = True):
-        if enabled:
-            print(msg)
-
-
-    # ============================================================
-    # 2. Configuration loading
-    # ============================================================
-    sim_cfg = load_yaml_file(SIMULATION_FILE)
-
-    solver_cfg = sim_cfg.get("solver", {})
-    time_cfg = sim_cfg.get("time", {})
-    output_cfg = sim_cfg.get("output", {})
-    verbose_cfg = sim_cfg.get("verbose", {})
-
-    verbose_enabled = bool(verbose_cfg.get("enabled", verbose_cfg.get("print_time", True)))
-    print_banner = bool(verbose_cfg.get("print_startup_banner", True))
-    print_interval_days = int(verbose_cfg.get("print_interval_days", verbose_cfg.get("print_interval", 10)))
-
-
-    # ============================================================
-    # 3. Load parameters / initial states / influent
-    # ============================================================
-    # Load intrinsic ADM1 parameters (kinetic, stoichiometric, physico-chemical)
-    param = ADM1Parameters(
-        params_file=PARAMS_FILE,
-        scenarios_file=SCENARIO_FILE,
-    )
-
-    # Load initial state vector y0 (38 ADM1 state variables)
-    init_state = InitialState(
-        states_file=STATES_FILE,
-        scenarios_file=SCENARIO_FILE,
-    )
-    y0_full = np.asarray(init_state.get_vector(), dtype=float)
-    declared_initial = init_state.get_dict()   # as declared in initial_states.yaml (run package)
-
-    # Load influent data (either time-series from CSV or constant values from YAML)
-    influent = Influent(
-        influent_file=INFLUENT_FILE,
-        scenarios_file=SCENARIO_FILE,
-    )
-
-    # Instantiate the ADM1 reactor model (holds all ODE equations and process rates)
-    reactor = ADM1Reactor(param, constants=None)
-    # Snapshot of the resolved parameters BEFORE integration (the reactor has already recomputed
-    # K_w / K_a_co2 / K_a_IN from T_op; a dynamic Q(t) later mutates q_ad during the run).
-    param_snapshot = dict(param.params)
-
-    # Wire optional hybrid hooks from the active scenario (no-op if absent).
-    # The hybrid registry is loaded from models/*.yaml — see src/registry.py.
-    scenario_cfg_full = load_yaml_file(SCENARIO_FILE)
-    active_scenario_key = scenario_cfg_full.get("active_scenario")
-    hybrid_cfg = (
-        scenario_cfg_full.get("scenarios", {})
-        .get(active_scenario_key, {})
-        .get("hybrid", {})
-    )
-    registry = load_registry()
-    hybrid_summary = apply_hybrid_config(reactor, hybrid_cfg, registry)
-    if hybrid_summary["enabled"]:
-        print("\n" + "━" * 66)
-        print("  ADM1 — Hybrid mode ENABLED")
-        print("━" * 66)
-        if hybrid_summary["rate_overrides"]:
-            print(f"  Rate overrides       : {', '.join(hybrid_summary['rate_overrides'])}")
-        if hybrid_summary["inhibition_overrides"]:
-            print(f"  Inhibition overrides : {', '.join(hybrid_summary['inhibition_overrides'])}")
-        if hybrid_summary["residual_correction"]:
-            print(f"  Residual correction  : {', '.join(hybrid_summary['residual_correction'])}")
-        print("━" * 66 + "\n")
-
-    # Re-project the initial state onto the acid-base equilibrium so the run
-    # starts with consistent pH / HCO3- / CO2 / NH3 / NH4+.
-    initial_state_dict = reactor.unpack_state(y0_full)
-    initial_acid_base = compute_acid_base_equilibrium(initial_state_dict, param)
-    y0_full = reactor._apply_acid_base_to_state_vector(y0_full, initial_acid_base)
-    y0_effective = np.array(y0_full, dtype=float)   # effective initial state (run package)
-    y0 = reactor.reduce_to_dynamic_state(y0_full)
-
-
-    # ============================================================
-    # 4. Build the simulation time vector
-    # ============================================================
-    time_data = np.asarray(influent.get_time(), dtype=float) # time axis of the influent data (d)
-
-    if len(time_data) == 0:
-        raise ValueError("Empty influent: no time points found.")
-
-    t_start = safe_float(time_cfg.get("t_start", 0), 0)
-
-    t_end_cfg = time_cfg.get("t_end", None)
-    # a scenario may fix its own horizon (e.g. the BSM2 steady-state test: 200 d)
-    _scn = load_yaml_file(SCENARIO_FILE)
-    _scn_t_end = _scn.get("scenarios", {}).get(_scn.get("active_scenario"), {}).get("t_end", None)
-    if _scn_t_end is not None:
-        t_end_cfg = _scn_t_end
-
-    if t_end_cfg is not None:
-        t_end = safe_float(t_end_cfg, 365.0)
-
-    elif getattr(influent, "mode", "constant") == "dynamic":
-        # Dynamic influent: simulation duration = length of the influent time series
-        # This ensures we don't simulate beyond available input data
-        t_end = float(time_data[-1])
- 
-    else:
-        # Constant influent: no natural end time from data.
-        # Use t_end_default_constant from config, or fall back to 365 d.
-        # Rule of thumb: simulate at least 3-5× the hydraulic retention time (HRT)
-        # to ensure the reactor reaches steady state.
-        t_end_default = safe_float(time_cfg.get("t_end_default_constant", 365.0), 365.0)
-        t_end = t_end_default
-
-
-    dt_out_cfg = time_cfg.get("dt_out", None)
-    if dt_out_cfg is None and getattr(influent, "mode", "constant") == "dynamic":
-        # dt_out: null -> one output row per influent row (same grid as the input CSV, like PyADM1)
-        t_eval = time_data[(time_data >= t_start) & (time_data <= t_end)].astype(float)
-        if t_eval[-1] < t_end:
-            t_eval = np.append(t_eval, t_end)
-        dt_out = float(np.median(np.diff(t_eval))) if len(t_eval) > 1 else float(t_end - t_start)
-    else:
-        dt_out = safe_float(dt_out_cfg, 1.0)                  # output time step (d)
-        t_eval = build_time_vector(t_start, t_end, dt_out)
-
-
-    # ============================================================
-    # 5. Pre-cache the influent to avoid repeated lookups in the hot loop
-    # ============================================================
-    # The ODE solver calls ADM1_wrapper thousands of times per simulation day.
-    # Reading the influent object once per day step and caching results in a list
-    # avoids repeated dictionary lookups / interpolations inside the hot loop.
-    influent_cache = [influent.get(i) for i in range(len(time_data))]
-
-
-    def get_influent_for_time(t: float) -> dict:
-        """
-        Return the influent state dict corresponding to simulation time t.
-
-        Uses np.searchsorted against the actual influent time axis to find the
-        active step (zero-order hold). This is robust to time axes that don't
-        start at 0 or aren't spaced exactly one day apart.
-
-        Parameters
-        ----------
-        t : float  Current simulation time (d).
-
-        Returns
-        -------
-        dict : Influent concentrations keyed as 'S_su_in', 'X_xc_in', etc. (kgCOD/m³)
-        """
-        step = int(np.searchsorted(time_data, t, side="right") - 1)
-        step = max(0, min(step, len(influent_cache) - 1))
-        return influent_cache[step]
-
-
-    # ============================================================
-    # 6. Startup banner
-    # ============================================================
-    def print_startup_banner():
-        """
-        Print a human-readable summary of the simulation setup to the console.
-        Helps quickly verify that the correct scenario, reactor volume, and
-        solver settings are being used before committing to a long run.
-        """
-        scenario_cfg = load_yaml_file(SCENARIO_FILE)
-        active_key = scenario_cfg.get("active_scenario", "?")
-        scenario = scenario_cfg.get("scenarios", {}).get(active_key, {})
-        sc_desc = str(scenario.get("description", "")).replace("\n", " ").strip()
-
-        # Compute hydraulic retention time HRT = V_liq / q_ad (d)
-        try:
-            hrt = param.V_liq / param.q_ad
-        except Exception:
-            hrt = float("nan")
-
-        # Classify operating temperature regime
-        T_op_C = param.T_op - 273.15    # convert from Kelvin to Celsius
-        if T_op_C < 20:
-            regime = "psychrophilic"
-        elif T_op_C < 42:
-            regime = "mesophilic"
-        elif T_op_C < 55:
-            regime = "intermediate"
+        # horizon and output times (one row per influent row when time.dt_out is null)
+        t_data = model.time_data
+        t_start = _float(time_cfg.get("t_start", 0), 0)
+        t_end_cfg = scen.get("t_end", time_cfg.get("t_end"))
+        if t_end_cfg is not None:
+            t_end = _float(t_end_cfg, 365.0)
+        elif influent.mode == "dynamic":
+            t_end = float(t_data[-1])
         else:
-            regime = "thermophilic"
+            t_end = _float(time_cfg.get("t_end_default_constant", 365.0), 365.0)
+        if a.t_end is not None:
+            t_end = float(a.t_end)
+        if time_cfg.get("dt_out") is None and influent.mode == "dynamic":
+            t_out = t_data[(t_data >= t_start) & (t_data <= t_end)].astype(float)
+            if t_out[-1] < t_end:
+                t_out = np.append(t_out, t_end)
+            dt_out = float(np.median(np.diff(t_out))) if len(t_out) > 1 else float(t_end - t_start)
+        else:
+            dt_out = _float(time_cfg.get("dt_out"), 1.0)
+            t_out = output_times(t_start, t_end, dt_out)
 
-        inf0 = get_influent_for_time(0.0)
+        solver = {"method": method, "rtol": solver_cfg.get("rtol", 1e-5), "atol": solver_cfg.get("atol", 1e-7),
+                  "max_step": solver_cfg.get("max_step", 0.5)}
+        if model.piecewise and len(t_data) > 1:
+            # never let one solver step straddle several influent rows
+            solver["max_step"] = min(float(solver["max_step"]), float(np.min(np.diff(t_data))))
+        inputs_rec, extra_files = influent_record(influent, influent.mode_key)
+        if influent.mode == "dynamic":
+            inputs_rec["hold"] = hold      # which row is held over each interval: part of the scenario
 
-        print("\n" + "━" * 66)
-        print("  ADM1 — Simulation configuration")
-        print("━" * 66)
-
-        print("\n  ── Scenario ────────────────────────────────────────────────────")
-        print(f"  Active name : {active_key}")
-        if sc_desc:
-            print(f"  Description : {sc_desc}")
-
-        print("\n  ── Reactor ─────────────────────────────────────────────────────")
-        print(f"  Liquid volume (V_liq) : {param.V_liq:.1f} m³")
-        print(f"  Gas volume    (V_gas) : {param.V_gas:.1f} m³")
-        print(f"  Influent flow (q_ad)  : {param.q_ad:.1f} m³/d")
-        print(f"  HRT                   : {hrt:.1f} d")
-        print(f"  Temperature           : {T_op_C:.1f} °C ({regime})")
-
-        print("\n  ── Influent ────────────────────────────────────────────────────")
-        print(f"  Mode : {getattr(influent, 'mode', 'unknown')}")
-        print(f"  S_su_in : {inf0.get('S_su_in', float('nan')):.4f} kgCOD/m³")
-        print(f"  S_aa_in : {inf0.get('S_aa_in', float('nan')):.4f} kgCOD/m³")
-        print(f"  X_xc_in : {inf0.get('X_xc_in', float('nan')):.4f} kgCOD/m³")
-        print(f"  S_IC_in : {inf0.get('S_IC_in', float('nan')):.4f} kmolC/m³")
-        print(f"  S_IN_in : {inf0.get('S_IN_in', float('nan')):.4f} kmolN/m³")
-
-        print("\n  ── Numerical solver ────────────────────────────────────────────")
-        print(f"  Method        : {solver_cfg.get('method', 'BDF')}")
-        print(f"  rtol / atol   : {solver_cfg.get('rtol', 1e-5):.0e} / {solver_cfg.get('atol', 1e-7):.0e}")
-        print(f"  Time horizon  : {t_start:.1f} → {t_end:.1f} d")
-        print(f"  Output step   : {dt_out:.4f} d/point  ({len(t_eval)} rows)")
-        print("━" * 66 + "\n")
-
-
-    if print_banner:
-        print_startup_banner()
-
-
-    # ============================================================
-    # 7. Daily summary
-    # ============================================================
-    _last_printed_bucket = [-1]  # mutable container so the nested function can update it
-    _wall_start = [0.0]          # wall-clock time at simulation start, for elapsed time display
-    _max_t_seen = [float("-inf")]
-    _last_progress_wall = [0.0]
-
-
-    def print_day_summary(t_day: float, summary: dict, elapsed_wall: float):
-        def flag_inhib(val, warn_threshold=0.5, crit_threshold=0.2):
-            if val < crit_threshold:
-                return "⚠ strong"
-            if val < warn_threshold:
-                return "~ moderate"
-            return "✓ ok"
-
-        print("\n" + "━" * 62)
-        print(f"  Day {t_day:>6.1f} d   |   wall-clock: {elapsed_wall:>6.1f} s")
-        print("─" * 62)
-        print(f"  pH              : {summary.get('pH', float('nan')):8.3f}")
-        print(f"  Biogas flow     : {summary.get('q_gas', float('nan')):10.4g} m³/d (wet, T_op, P_gas)")
-        print(f"  P CH₄ (gas)     : {summary.get('p_gas_ch4_bar', float('nan')):8.4f} bar")
-        print("  Inhibitions:")
-        print(f"    pH acidogens     {summary.get('I_pH_aa', float('nan')):6.3f}  {flag_inhib(summary.get('I_pH_aa', 1.0))}")
-        print(f"    NH₃ methanogens  {summary.get('I_nh3', float('nan')):6.3f}  {flag_inhib(summary.get('I_nh3', 1.0))}")
-        print(f"    H₂ LCFA          {summary.get('I_h2_fa', float('nan')):6.3f}  {flag_inhib(summary.get('I_h2_fa', 1.0))}")
-        print("  COD:")
-        print(f"  Liquid COD      : {summary.get('COD_liquid_total', float('nan')):8.3f} kgCOD/m³")
-        print(f"  Total inventory : {summary.get('COD_total_inventory', float('nan')):8.1f} kgCOD")
-
-        print("━" * 62)
+        print(f"ADM1 {key}: influent {influent.mode_key} ({influent.mode}), {t_start:g} -> {t_end:g} d, "
+              f"{len(t_out)} output rows, solver {method} rtol {solver['rtol']:g} atol {solver['atol']:g} "
+              f"max_step {solver['max_step']:g}{', piecewise' if model.piecewise else ''}"
+              f"{f', influent hold {hold}' if influent.mode == 'dynamic' else ''}", flush=True)
+        out = run_scenario(model, ROOT, key, cfg=cfg, initial_state=x0, scenario_name=key, t_start=t_start, t_end=t_end,
+                           t_out=t_out, dt_out=dt_out, solver=solver, inputs_record=inputs_rec, extra_files=extra_files,
+                           hybrid_record=hybrid_record(model.hybrid_summary or {}, hybrid_cfg, registry),
+                           config_files={"influent.yaml": INFLUENT_FILE, "initial_states.yaml": STATES_FILE},
+                           package=not a.no_package and bool((output_cfg.get("run_package") or {}).get("enabled", True)),
+                           runs_dir=a.runs_dir, write_results=not a.no_results and bool(output_cfg.get("save_results", True)))
+    except StammModelError as exc:
+        print(f"ERROR: {exc}")
+        return 1
+    if model.hybrid_summary and model.hybrid_summary.get("enabled"):
+        s = model.hybrid_summary
+        print("  hybrid: " + "; ".join(f"{k} {', '.join(s[k])}" for k in
+                                       ("rate_overrides", "inhibition_overrides", "residual_correction") if s.get(k)))
+    res = out.result
+    c = res.columns
+    print(f"{out.scenario_name}: {res.n_rows} rows, {c['time'][0]:g}-{c['time'][-1]:g} d, {res.duration_s:.1f} s, "
+          f"{res.solver.get('segments')} solver segments; final pH = {c['pH'][-1]:.3f}, "
+          f"q_ch4 = {c['q_ch4_norm_dry'][-1]:.4g} Nm3/d" + ("" if res.success else f"\n  RUN FAILED: {res.message}"))
+    for w in out.warnings:
+        print(f"  note: {w}")
+    if out.results_csv:
+        print(f"Results: {os.path.relpath(out.results_csv, ROOT)}")
+    if out.zip_path:
+        print(f"Run package: {os.path.relpath(out.zip_path, ROOT)}")
+        print(out.validation.text())
+    if not a.no_plots and bool(output_cfg.get("save_figures", True)) and res.n_rows >= 2 and hasattr(model, "table"):
+        make_plots(model, output_cfg)
+    if out.zip_path:
+        return 0 if (out.validation.ok and res.success) else 2
+    return 0 if res.success else 2
 
 
-    # ============================================================
-    # 8. Solver wrapper
-    # ============================================================
-    def ADM1_wrapper(t, y):
-        # Inject the current influent into the reactor (updates feed concentrations)
-        reactor.influent_state = get_influent_for_time(t)
-        # FIX (optional): dynamic feed flow q_ad(t) from the influent 'Q' column
-        if "q_ad_in" in reactor.influent_state:
-            param.params["q_ad"] = reactor.influent_state["q_ad_in"]
-        # Compute all 38 differential equations of the ADM1 model
-        dydt = reactor.ADM1_ODE(t, y)
-
-        if t > _max_t_seen[0]:
-            _max_t_seen[0] = float(t)
-
-        # Periodic console logging — avoids flooding the terminal on every solver step
-        if verbose_enabled and hasattr(reactor, "get_process_summary"):
-            progress_t = _max_t_seen[0]
-            bucket = int(np.floor(progress_t / max(print_interval_days, 1)))
-            if bucket > _last_printed_bucket[0]:
-                _last_printed_bucket[0] = bucket
-                try:
-                    summary = reactor.get_process_summary()
-                    elapsed_wall = time.time() - _wall_start[0]
-                    _last_progress_wall[0] = elapsed_wall
-                    print_day_summary(progress_t, summary, elapsed_wall)
-                except Exception:
-                    pass
-            elif _wall_start[0] > 0.0:
-                elapsed_wall = time.time() - _wall_start[0]
-                if elapsed_wall - _last_progress_wall[0] >= 30.0:
-                    _last_progress_wall[0] = elapsed_wall
-                    maybe_print(
-                        f"  Solver progress: t_max reached = {_max_t_seen[0]:.3f} d | wall-clock: {elapsed_wall:>6.1f} s",
-                        verbose_enabled,
-                    )
-
-        return dydt
-
-
-    # ============================================================
-    # 9. ODE integration
-    # ============================================================
-    maybe_print("━" * 62, verbose_enabled)
-    maybe_print(f"  ADM1 simulation — method {solver_cfg.get('method', 'BDF')}", verbose_enabled)
-    maybe_print(f"  t_start={t_start:.1f} d  →  t_end={t_end:.1f} d  (dt_out={dt_out} d)", verbose_enabled)
-    maybe_print("━" * 62 + "\n", verbose_enabled)
-
-    t0 = time.time()
-    _wall_start[0] = t0
-
-    # FIX: the influent is a piecewise-constant (zero-order-hold) forcing. Restarting the
-    # integrator at every influent step (as PyADM1 does) is the correct way to handle the
-    # discontinuities; a single solve_ivp with the feed switched inside the RHS is only
-    # acceptable when the feed step is >= max_step. Controlled by solver.piecewise (default true).
-    # GUARD 1: the system is stiff (S_h2 is integrated). Explicit solvers (RK45, DOP853, RK23)
-    # become unstable at the 15-min BSM2 feed step: S_h2 turns negative, H2 inhibition explodes,
-    # methanogens wash out and pH collapses — silently, without a solver error.
-    _method = str(solver_cfg.get("method", "BDF"))
-    if _method.upper() in ("RK45", "RK23", "DOP853") and not bool(solver_cfg.get("allow_explicit", False)):
-        raise SystemExit(
-            f"solver.method = '{_method}' is an explicit integrator; this ADM1 formulation is stiff and "
-            "explicit methods give wrong results (negative concentrations). Use 'BDF' (default), 'Radau' or "
-            "'LSODA'. Set solver.allow_explicit: true in simulation.yaml to override at your own risk."
-        )
-
-    solver_kwargs = dict(
-        method=solver_cfg.get("method", "BDF"),
-        rtol=solver_cfg.get("rtol", 1e-5),
-        atol=solver_cfg.get("atol", 1e-7),
-        max_step=solver_cfg.get("max_step", 0.5),
-    )
-    piecewise = bool(solver_cfg.get("piecewise", True)) and getattr(influent, "mode", "constant") == "dynamic"
-    if piecewise and len(time_data) > 1:
-        # never let one solver step straddle several influent rows
-        solver_kwargs["max_step"] = min(float(solver_kwargs["max_step"]), float(np.min(np.diff(time_data))))
-
-    if piecewise:
-        # influent breakpoints inside the horizon (feed row i is active on (t_{i-1}, t_i])
-        breaks = time_data[(time_data > t_start) & (time_data < t_end)]
-        edges = np.concatenate(([t_start], breaks, [t_end]))
-        ys, ts = [], []
-        y = np.asarray(y0, dtype=float)
-        for k in range(len(edges) - 1):
-            ta, tb = float(edges[k]), float(edges[k + 1])
-            if tb <= ta:
-                continue
-            inside = t_eval[(t_eval > ta) & (t_eval <= tb)]
-            if k == 0 and t_eval[0] <= ta + 1e-12:
-                ts.append(t_eval[0]); ys.append(y.copy())
-            seg = solve_ivp(ADM1_wrapper, (ta, tb), y, t_eval=np.unique(np.append(inside, tb)), **solver_kwargs)
-            if not seg.success:
-                raise RuntimeError(f"Solver failure on [{ta}, {tb}]: {seg.message}")
-            for tt, yy in zip(seg.t, seg.y.T):
-                if tt in inside:
-                    ts.append(tt); ys.append(yy)
-            y = seg.y[:, -1]
-
-        class _Sol:  # minimal solve_ivp-like result
-            pass
-        sol = _Sol()
-        sol.t = np.asarray(ts); sol.y = np.asarray(ys).T
-        sol.success, sol.message = True, f"piecewise integration over {len(edges)-1} influent intervals"
-    else:
-        sol = solve_ivp(
-            fun=ADM1_wrapper,
-            t_span=(t_start, t_end),
-            y0=y0,
-            t_eval=t_eval,
-            dense_output=solver_cfg.get("dense_output", False),
-            **solver_kwargs,
-        )
-
-    elapsed = time.time() - t0
-    print(f"\nSimulation time: {int(elapsed // 60)} min {int(elapsed % 60)} s")
-    print(f"Success: {sol.success} | Message: {sol.message}")
-
-    if not sol.success:
-        raise RuntimeError(f"Solver failure: {sol.message}")
-
-    # GUARD 2: concentrations must stay non-negative; a negative state means numerical failure.
-    run_warnings = []
-    _neg = np.min(sol.y)
-    if _neg < -1e-9:
-        idx = np.unravel_index(np.argmin(sol.y), sol.y.shape)
-        name = reactor.unpack_state(reactor.expand_dynamic_state(sol.y[:, 0]))  # names in order
-        dyn_names = [n for n in FULL_STATE_NAMES if n not in ("S_H_ion","S_va_ion","S_bu_ion","S_pro_ion","S_ac_ion","S_hco3_ion","S_co2","S_nh3","S_nh4_ion")]
-        print("\n" + "!" * 66)
-        print(f"  WARNING: negative concentration {dyn_names[idx[0]]} = {_neg:.3e} at t = {sol.t[idx[1]]:.3f} d.")
-        print("  The integration is numerically unstable — results are NOT valid.")
-        print("  Use an implicit solver (BDF/Radau/LSODA) and/or tighter rtol/atol.")
-        print("!" * 66 + "\n")
-        run_warnings.append(
-            f"negative concentration {dyn_names[idx[0]]} = {_neg:.3e} at t = {sol.t[idx[1]]:.3f} d: "
-            "integration numerically unstable, results NOT valid"
-        )
-
-
-    # ============================================================
-    # 10. Save results
-    # ============================================================
-    reconstructed_rows = []
-    for dynamic_row in sol.y.T:
-        full_state_vector = reactor.expand_dynamic_state(dynamic_row)
-        state = reactor.unpack_state(full_state_vector)
-        acid_base = compute_acid_base_equilibrium(state, param)
-        reconstructed_rows.append(reactor._apply_acid_base_to_state_vector(full_state_vector, acid_base))
-
-    df = pd.DataFrame(reconstructed_rows, columns=FULL_STATE_NAMES)
-    df.insert(0, "time", sol.t)
-
-    acid_base_rows = []
-    cod_rows = []
-
-    for _, row in df.iterrows():
-        state = {name: float(row[name]) for name in FULL_STATE_NAMES}
-        acid_base_rows.append(compute_acid_base_equilibrium(state, param))
-        cod_rows.append(compute_total_cod(state, param))
-
-    acid_base_df = pd.DataFrame(acid_base_rows)
-    cod_df = pd.DataFrame(cod_rows)
-
-    for col in acid_base_df.columns:
-        df[col] = acid_base_df[col]
-
-    for col in cod_df.columns:
-        df[col] = cod_df[col]
-
-    # Biogas flows [m^3.d^-1] (same q_gas law as the ODE; see ADM1Reactor.compute_gas_outputs):
-    # q_gas (wet, T_op, P_gas), q_gas_atm (wet, T_op, P_atm), q_gas_norm_dry / q_ch4_norm_dry (0 C, 1 atm, dry)
-    gas_out = reactor.compute_gas_outputs(df)
-    for col in ("q_gas", "q_gas_atm", "q_gas_norm_dry", "q_ch4_norm_dry"):
-        df[col] = np.asarray(gas_out[col], dtype=float)
-
-    output_dir = output_cfg.get("output_dir", "results")
-    os.makedirs(output_dir, exist_ok=True)
-
-    if output_cfg.get("save_results", True):
-        out_path = os.path.join(output_dir, output_cfg.get("filename", "dynamic_out.csv"))
-        df.to_csv(out_path, index=False)
-        print(f"\nResults saved → {out_path} ✅")
-
-    # ------------------------------------------------------------
-    # 10b. Run package for the STAMM registry (docs/run_package.md)
-    #      runs/<run_id>/ = dynamic_out.csv (unchanged) + run.json (+ influent.csv)
-    #      Never blocks the simulation: any error is reported and skipped.
-    # ------------------------------------------------------------
-    package_cfg = output_cfg.get("run_package", {}) or {}
-    if bool(package_cfg.get("enabled", True)):
-        try:
-            _scenario_block = scenario_cfg_full.get("scenarios", {}).get(active_scenario_key, {}) or {}
-            run_dir = export_run_package(
-                df=df,
-                scenario_name=active_scenario_key,
-                scenario_block=_scenario_block,
-                param_snapshot=param_snapshot,
-                declared_initial=declared_initial,
-                effective_initial=y0_effective,
-                state_names=FULL_STATE_NAMES,
-                states_key=init_state._get_active_key(),
-                influent=influent,
-                hybrid_cfg=hybrid_cfg,
-                hybrid_summary=hybrid_summary,
-                solver={
-                    "method": solver_kwargs.get("method"),
-                    "rtol": solver_kwargs.get("rtol"),
-                    "atol": solver_kwargs.get("atol"),
-                    "max_step": solver_kwargs.get("max_step"),
-                    "piecewise": bool(piecewise),
-                },
-                time_info={
-                    "t_start": float(t_start),
-                    "t_end": float(t_end),
-                    "dt_out": float(dt_out),
-                    "units": time_cfg.get("units", "d"),
-                    "n_output_points": int(len(df)),
-                },
-                status={"success": bool(sol.success), "message": str(sol.message), "warnings": run_warnings},
-                started_at=_run_started_at,
-                package_cfg=package_cfg,
-                csv_filename=output_cfg.get("filename", "dynamic_out.csv"),
-                paths={
-                    "params": PARAMS_FILE,
-                    "states": STATES_FILE,
-                    "influent": INFLUENT_FILE,
-                    "scenario": SCENARIO_FILE,
-                    "simulation": SIMULATION_FILE,
-                },
-            )
-            print(f"Run package saved → {run_dir} ✅")
-        except Exception as e:
-            print(f"Run package skipped: {e}")
-
-
-    # ============================================================
-    # 11. Plots
-    # ============================================================
-    save_figures = bool(output_cfg.get("save_figures", True))
-    show_figures = bool(output_cfg.get("show_figures", True))
-    fig_dir = os.path.join(output_dir, "figures")
+def make_plots(model, output_cfg):
+    """results/figures: biogas, biomass, pH / alkalinity (a failed plot never fails the run)."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg" if not output_cfg.get("show_figures") else matplotlib.get_backend())
+        from plots.plot_biogas import plot_biogas
+        from plots.plot_biomass import plot_biomass
+        from plots.plot_pH_alkalinity import plot_pH_alkalinity
+    except Exception as exc:  # noqa: BLE001 - plots are optional
+        print(f"Plots skipped: {exc}")
+        return
+    show = bool(output_cfg.get("show_figures", False))
+    fig_dir = os.path.join(ROOT, output_cfg.get("output_dir", "results"), "figures")
     os.makedirs(fig_dir, exist_ok=True)
-
-    print("\nGenerating plots...")
-
-    n_points = len(df)
-
-    if n_points < 2:
-        print("Too few points to generate reliable plots. Skipping.")
-    else:
+    df, param = model.table, model.param
+    for name, fn, kwargs in (("biogas", plot_biogas, {"param": param}), ("biomass", plot_biomass, {}),
+                             ("pH_alkalinity", plot_pH_alkalinity, {"param": param})):
         try:
-            plot_biogas(
-                df=df,
-                param=param,
-                save_path=os.path.join(fig_dir, "biogas.png") if save_figures else None,
-                show=show_figures,
-            )
-            print("Biogas plot generated ✅")
-        except Exception as e:
-            print(f"Biogas plot skipped: {e}")
+            fn(df=df, save_path=os.path.join(fig_dir, f"{name}.png"), show=show, **kwargs)
+        except Exception as exc:  # noqa: BLE001
+            print(f"{name} plot skipped: {exc}")
 
-        try:
-            plot_biomass(
-                df=df,
-                save_path=os.path.join(fig_dir, "biomass.png") if save_figures else None,
-                show=show_figures,
-            )
-            print("Biomass plot generated ✅")
-        except Exception as e:
-            print(f"Biomass plot skipped: {e}")
-
-        try:
-            plot_pH_alkalinity(
-                df=df,
-                param=param,
-                save_path=os.path.join(fig_dir, "pH_alkalinity.png") if save_figures else None,
-                show=show_figures,
-            )
-            print("pH/alkalinity plot generated ✅")
-        except Exception as e:
-            print(f"pH/alkalinity plot skipped: {e}")
-
-        # Quick overview plot — only if enough points
-        try:
-            fig, axes = plt.subplots(3, 1, figsize=(10, 9), sharex=True)
-
-            axes[0].plot(df["time"], df["S_ac"], label="Acetate (S_ac)")
-            axes[0].set_ylabel("kgCOD.m⁻³")
-            axes[0].legend()
-            axes[0].grid(True)
-
-            axes[1].plot(df["time"], df["S_ch4"], label="Methane (S_ch4)")
-            axes[1].set_ylabel("kgCOD.m⁻³")
-            axes[1].legend()
-            axes[1].grid(True)
-
-            axes[2].plot(df["time"], df["S_h2"], label="Hydrogen (S_h2)")
-            axes[2].set_ylabel("kgCOD.m⁻³")
-            axes[2].set_xlabel(f"Time [{time_cfg.get('units', 'd')}]")
-            axes[2].legend()
-            axes[2].grid(True)
-
-            fig.suptitle("ADM1 simulation", fontsize=13)
-            plt.tight_layout()
-            if show_figures:
-                plt.show()
-            else:
-                plt.close(fig)
-        except Exception as e:
-            print(f"Quick overview skipped: {e}")
 
 if __name__ == "__main__":
-    if _handle_introspection_flags(sys.argv[1:]):
-        sys.exit(0)
-    main()
+    sys.exit(main())

@@ -13,7 +13,7 @@ Date: 04/2026
 
 
 Loads ADM1 model parameters from the modular configuration:
-  - configs/adm1_parameters.yaml       : intrinsic model parameters
+  - configs/parameters.yaml            : intrinsic model parameters
   - configs/scenarios/scenarios.yaml   : active scenario and overrides
 Simulation-specific parameters (T_op, q_ad, V_liq, etc.) can be overridden
 by the active scenario.
@@ -29,18 +29,28 @@ class ADM1Parameters:
     Resolution order (decreasing priority):
         1. parameter_overrides of the active scenario
         2. T_op value of the active scenario
-        3. adm1_parameters.yaml (central reference)
+        3. parameters.yaml (central reference)
     """
 
     def __init__(
         self,
-        params_file: str = "configs/adm1_parameters.yaml",
-        scenarios_file: str = "configs/scenario.yaml",
+        params_file: str = "configs/parameters.yaml",
+        scenarios_file: str = "configs/scenarios.yaml",
+        scenario_key: str | None = None,
     ):
         self.params_file = params_file
         self.scenarios_file = scenarios_file
+        self.scenario_key = scenario_key
         self.params: dict = {}
         self._load()
+
+    @classmethod
+    def from_values(cls, values: dict) -> "ADM1Parameters":
+        """Parameters already resolved (stamm-model-core: parameters.yaml + scenario overrides)."""
+        obj = cls.__new__(cls)
+        obj.params_file = obj.scenarios_file = obj.scenario_key = None
+        obj.params = {k: float(v) for k, v in values.items()}
+        return obj
 
     # ------------------------------------------------------------------
     # Loading
@@ -53,7 +63,7 @@ class ADM1Parameters:
         self.params = {**base, **overrides}
 
     def _load_base_params(self) -> dict:
-        """Load and flatten adm1_parameters.yaml."""
+        """Load and flatten parameters.yaml."""
         with open(self.params_file, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f)
         return self._flatten(raw)
@@ -71,7 +81,7 @@ class ADM1Parameters:
         except FileNotFoundError:
             return overrides
 
-        active_key = raw.get("active_scenario")
+        active_key = self.scenario_key or raw.get("active_scenario") or raw.get("default_scenario")
         if not active_key:
             return overrides
 

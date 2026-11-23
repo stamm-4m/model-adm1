@@ -12,6 +12,21 @@
 # It is independent from the physical content of the model.
 # ============================================================
 
+# stamm-model-core (2026-11-06): mode, dt_out, t_start, include_initial and output.results_dir /
+# runs_dir / zip / code_files. The output times come from time.dt_out below (null = one row per
+# influent row), computed by main.py; the top-level dt_out is only the core's fallback.
+mode: continuous
+dt_out: 1.0
+t_start: 0.0
+include_initial: true
+# Which influent row is held over each interval [t_(i-1), t_i] of a dynamic influent (backlog 63):
+#   start  row i-1: the value of a row holds until the next row (default: it reproduces the MATLAB
+#          BSM2 reference best, tools/influent_hold_report.md and docs/validation.md section E)
+#   end    row i: the value at the end of the interval, as the PyADM1 loop (Sadrimajd et al. 2021);
+#          with the daily influent it shifts the feed by one day (9 states out of tolerance)
+#   legacy model-adm1 before 2026-11-06 (row i-1, but row i at t_i exactly): reproduces earlier runs
+influent_hold: start
+
 # ------ ODE solver ------
 solver:
   method: "BDF"          # Use an IMPLICIT solver: "BDF" (default), "Radau" or "LSODA". The system is stiff
@@ -21,7 +36,6 @@ solver:
   atol: 1.0e-8            # Absolute tolerance
   max_step: 1.0           # Maximum time step [d] (inf = unconstrained)
   piecewise: true         # restart the integrator at every influent step (recommended, PyADM1-like)
-  dense_output: false     # Dense output (interpolation between steps)
 
 # ------ Duration and output time step ------
 time:
@@ -38,52 +52,10 @@ output:
   save_figures: true
   show_figures: false    # set true to open the matplotlib windows
   output_dir: "results/"
-  filename: "dynamic_out.csv"
+  results_dir: "results/"   # stamm-model-core: results/dynamic_out.csv
+  runs_dir: "runs/"         # stamm-model-core: runs/<run_id>/ + runs/<run_id>.zip
+  zip: true
+  code_files: ["main.py", "model.py", "initial_states.py", "src/*.py"]
   run_package:            # standard package for the STAMM registry (docs/run_package.md)
-    enabled: true         # runs/<run_id>/ = dynamic_out.csv (unchanged) + run.json (+ influent.csv)
-    runs_dir: "runs/"     # one sub-folder per run, never overwritten
-    zip: true             # also write runs/<run_id>.zip (flat archive, ready to upload)
-  state_variables:        # Variables to save (null = all)
-    - S_su
-    - S_aa
-    - S_fa
-    - S_va
-    - S_bu
-    - S_pro
-    - S_ac
-    - S_h2
-    - S_ch4
-    - S_IC
-    - S_IN
-    - S_I
-    - X_xc
-    - X_ch
-    - X_pr
-    - X_li
-    - X_su
-    - X_aa
-    - X_fa
-    - X_c4
-    - X_pro
-    - X_ac
-    - X_h2
-    - X_I
-    - S_cation
-    - S_anion
-    - S_H_ion
-    - S_va_ion
-    - S_bu_ion
-    - S_pro_ion
-    - S_ac_ion
-    - S_hco3_ion
-    - S_nh3
-    - S_gas_h2
-    - S_gas_ch4
-    - S_gas_co2
-    - S_co2
-    - S_nh4_ion
-
-# ------ Progress output ------
-verbose:
-  print_time: true        # Print simulation time at each step
-  print_interval: 1       # Print every N steps (avoids flooding the console)
+    enabled: true         # runs/<run_id>/ = dynamic_out.csv (unchanged) + run.json (+ influent.csv);
+                          # folder and zip: output.runs_dir / output.zip above

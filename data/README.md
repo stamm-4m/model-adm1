@@ -13,7 +13,7 @@ data/
 several scenarios can share the same influent. The link is:
 
 ```
-configs/scenario.yaml   influent_mode: <entry>
+configs/scenarios.yaml  influent_mode: <entry>
         └──► configs/influent.yaml   <entry>: file_path: data/influent/<source>/<file>.csv
 ```
 

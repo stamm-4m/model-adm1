@@ -1,7 +1,7 @@
 """
 Cross-test of the use_xc = 0 implementation against the RM_without_Xc code (Tatiana's 5 L digester).
 
-    python main.py                       # active_scenario: Tatiana_RM_lab_5L
+    python main.py --scenario Tatiana_RM_lab_5L
     python tests/compare_tatiana_rm.py --results results/dynamic_out.csv
 
 Reference: tests/data/tatiana_rm_sim_result.csv = RM_without_Xc/outputs/sim_result.csv (193 d, 40 rows/d),

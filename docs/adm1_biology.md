@@ -327,7 +327,7 @@ Two operational knobs dominate ADM1 behaviour:
   pipeline collapses. Methanogens, the slowest growers, are almost always
   the limiting guild.
 
-These knobs are configured in [`configs/scenario.yaml`](../configs/scenario.yaml).
+These knobs are configured in [`configs/scenarios.yaml`](../configs/scenarios.yaml).
 Different scenarios (`BSM2_dynamic`, `thermophilic`, `batch_validation`, …)
 just override these knobs and feed compositions, without changing the
 intrinsic ADM1 parameters.
@@ -338,30 +338,28 @@ intrinsic ADM1 parameters.
 
 | Biology / ADM1 concept | File | What lives there |
 |---|---|---|
-| 38-state vector, 19 processes, ODE right-hand side | [`src/reactor.py`](../src/reactor.py) | `ADM1Reactor`, `ADM1_ODE`, `compute_process_rates`, `compute_gas_transfer` |
+| 38-state vector, 19 processes, ODE right-hand side | [`src/reactor.py`](../src/reactor.py) | `ADM1Reactor`, `ADM1_ODE`, `compute_biochemical_rates`, `compute_gas_transfer` |
 | Acid–base algebraic loop (pH, HCO₃⁻, NH₃) | [`src/acid_base.py`](../src/acid_base.py) | `compute_acid_base_equilibrium`, `compute_total_cod` |
-| Kinetic / stoichiometric / physico-chemical parameters | [`src/parameters.py`](../src/parameters.py) + [`configs/adm1_parameters.yaml`](../configs/adm1_parameters.yaml) | `ADM1Parameters` |
+| Kinetic / stoichiometric / physico-chemical parameters | [`src/parameters.py`](../src/parameters.py) + [`configs/parameters.yaml`](../configs/parameters.yaml) | `ADM1Parameters` |
 | Initial state vector for a given scenario | [`initial_states.py`](../initial_states.py) + [`configs/initial_states.yaml`](../configs/initial_states.yaml) | `InitialState`, `STATE_VARIABLES` |
 | Influent (feed composition over time) | [`src/influent.py`](../src/influent.py) + [`configs/influent.yaml`](../configs/influent.yaml) | `Influent` (constant or dynamic CSV) |
-| Solver settings (BDF, tolerances, time horizon) | [`configs/simulation.yaml`](../configs/simulation.yaml) | consumed by [`main.py`](../main.py) |
+| Solver settings (BDF, tolerances, time horizon) | [`configs/simulation.yaml`](../configs/simulation.yaml) | read by [`main.py`](../main.py), run by stamm-model-core via [`model.py`](../model.py) |
 | Diagnostic plots (biogas, biomass, pH/alkalinity) | [`plots/`](../plots/) | reproduce the figures in `results/figures/` |
 
-A single simulation run (in [`main.py`](../main.py)) is roughly:
+A single simulation run (`python main.py --scenario <name>`) is roughly:
 
 ```python
-params   = ADM1Parameters(...)               # load parameters + scenario overrides
-y0       = InitialState(...).get_vector()    # 38-D initial state
-influent = Influent(...)                     # feed (constant or time-series)
-reactor  = ADM1Reactor(params)               # holds the ODE RHS
+# main.py: resolve the scenario (parameters.yaml + parameter_overrides), the initial set, the influent
+params   = ADM1Parameters.from_values(resolved_params)
+x0       = InitialState(..., scenario_key=name).get_dict()   # 38-D initial state (S_anion from its pH)
+influent = Influent(..., scenario_key=name)                  # feed (constant or time-series)
+model    = ADM1(influent, hybrid_cfg, registry)              # model.py: ADM1(OdeModel) around ADM1Reactor
 
-sol = scipy.integrate.solve_ivp(
-    fun     = lambda t, y: reactor.ADM1_ODE(t, y, influent.get(t)),
-    t_span  = (t_start, t_end),
-    y0      = y0,
-    method  = "BDF",       # stiff solver — ADM1 is very stiff
-    rtol=1e-5, atol=1e-7,
-)
-# → sol.y is the trajectory of all 38 states over time
+# stamm-model-core integrates the 29 dynamic states (the 9 acid-base species are algebraic):
+#   solve_ivp(BDF, rtol=1e-6, atol=1e-8), restarted at every influent row ("piecewise");
+#   model.rhs(t, y) -> ADM1Reactor.ADM1_ODE(t, y) with the influent row held over the piece
+out = run_scenario(model, ROOT, name, ...)
+# -> results/dynamic_out.csv (time + 38 states + pH, COD, biogas flows) and runs/<run_id>.zip
 ```
 
 The solver of choice is **BDF** (backward differentiation formulas) because
@@ -416,5 +414,5 @@ patterns visible at a glance.
   step (the DAE part).
 - The solver is **stiff BDF** — necessary because of the time-scale gap
   between gas/acid–base equilibria and biomass dynamics.
-- Configure the scenario in [`configs/scenario.yaml`](../configs/scenario.yaml),
+- Configure the scenario in [`configs/scenarios.yaml`](../configs/scenarios.yaml) (`python main.py --scenario <key>`),
   run [`main.py`](../main.py), inspect the figures in `results/figures/`.

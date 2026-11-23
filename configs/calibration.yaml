@@ -9,7 +9,7 @@
 # ADM1 calibration configuration
 # ============================================================
 # This file defines the model calibration framework.
-# It explicitly separates fixed parameters (adm1_parameters.yaml)
+# It explicitly separates fixed parameters (parameters.yaml)
 # from the adjustable parameters listed here.
 # ============================================================
 
